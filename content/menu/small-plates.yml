@@ -1,0 +1,33 @@
+title: Small Plates & Fresh Greens
+subtitle: Artisan accompaniments prepared with wood-fired hearth techniques
+order: 2
+items:
+  - name: Castelfranco & Shaved Parmigiano
+    italianName: Insalata di Radicchio
+    description: >-
+      Speckled Castelfranco radicchio, shaved 24-month Parmigiano-Reggiano, toasted pine nuts, white Modena balsamic
+      vinaigrette.
+    price: 14
+    available: true
+    tags:
+      - Gluten-Free
+      - Vegetarian
+  - name: Warm 72-Hour Focaccia & Cultured Butter
+    italianName: Focaccia della Casa al Burro Nocciola
+    description: >-
+      Hearth-baked wedge of our signature 72-hour dough topped with rosemary, sea salt, served with house-whipped
+      cultured honey-herb butter.
+    price: 10
+    available: true
+    tags:
+      - Signature Dough
+  - name: Wood-Warmed Castelvetrano Olives
+    italianName: Olive Calde Condite
+    description: >-
+      Vibrant green Sicilian olives gently warmed in the oven mouth with preserved lemon peel, cracked coriander, and
+      wild fennel.
+    price: 8
+    available: true
+    tags:
+      - Vegan
+      - Gluten-Free

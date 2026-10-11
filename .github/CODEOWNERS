@@ -1,0 +1,9 @@
+# Reviewers automatically requested on pull requests.
+# Content changes made through the CMS land under content/ — the site owner
+# (or whoever approves menu/blog changes) should be listed here.
+# Replace the handles below with real GitHub usernames or a team.
+content/                 @slow-dough-pizza/content-reviewers
+public/admin/            @slow-dough-pizza/developers
+tools/                   @slow-dough-pizza/developers
+oauth/                   @slow-dough-pizza/developers
+.github/                 @slow-dough-pizza/developers

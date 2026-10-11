@@ -1,0 +1,26 @@
+title: Non-Alcoholic Refreshments
+subtitle: Traditional Italian sodas, sparkling mountain mineral water, and house herbal infusions
+order: 3
+items:
+  - name: Italian Sparkling Mineral Water (750ml)
+    description: Bottled at the source in San Pellegrino Terme, crisp fine effervescence.
+    price: 6
+    available: true
+    tags: []
+  - name: Artisanal Chinotto & Aranciata Amara
+    description: Bitter citrus Sicilian herbal soda brewed with Ligurian myrtle-leaf orange extracts.
+    price: 5
+    available: true
+    tags: []
+  - name: Fresh Sicilian Meyer Lemon & Rosemary Soda
+    description: Hand-squeezed Meyer lemons, crushed garden rosemary syrup, and sparkling spring water.
+    price: 5
+    available: true
+    tags:
+      - House-Made
+  - name: Cold-Brewed Hibiscus & Blood Orange Tea
+    description: Unsweetened slow cold-steeped wild hibiscus flowers, dried blood orange peel, and fresh mint sprig.
+    price: 5
+    available: true
+    tags:
+      - House-Made

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { BLOG_POSTS } from '../data/pizzaShopData';
+import { BLOG_POSTS } from '../content';
 import { BlogPost } from '../types';
-import { BookOpen, Calendar, Clock, User, X, CheckCircle, Quote } from 'lucide-react';
+import { BookOpen, Calendar, Clock, User, X, CheckCircle } from 'lucide-react';
+import { SafeMarkdown } from './SafeMarkdown';
 import { DoughHandlingArt, WoodOvenArt } from './MinimalArt';
 
 interface ArticlesSectionProps {
@@ -179,31 +180,11 @@ export const ArticlesSection: React.FC<ArticlesSectionProps> = () => {
                 </ul>
               </div>
 
-              {/* Article Content Sections */}
-              <div className="space-y-8 text-base text-[#383028] leading-relaxed">
-                {activeModalPost.content.map((sec, idx) => (
-                  <div key={idx} className="space-y-4">
-                    {sec.sectionHeading && (
-                      <h3 className="font-serif text-2xl font-bold text-[#24211e] pt-2">
-                        {sec.sectionHeading}
-                      </h3>
-                    )}
-                    {sec.paragraphs.map((p, pIdx) => (
-                      <p key={pIdx} className="leading-relaxed">
-                        {p}
-                      </p>
-                    ))}
-                    {sec.quote && (
-                      <div className="my-6 p-5 border-l-3 border-[#c85a32] bg-[#f4ece0]/60 rounded-r-lg">
-                        <Quote className="w-5 h-5 text-[#c85a32] mb-1" />
-                        <p className="font-serif italic text-lg text-[#24211e]">
-                          {sec.quote}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {/* Article body – CMS Markdown rendered through the safe renderer */}
+              <SafeMarkdown
+                source={activeModalPost.body}
+                className="space-y-5 text-base text-[#383028] leading-relaxed"
+              />
 
               {/* Author sign-off */}
               <div className="pt-6 border-t border-[#e2d5c5] flex items-center justify-between text-xs text-[#706356]">

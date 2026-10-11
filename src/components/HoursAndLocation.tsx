@@ -1,6 +1,6 @@
 import React from 'react';
-import { STORE_HOURS } from '../data/pizzaShopData';
-import { Clock, MapPin, Phone, Mail, Sparkles, AlertCircle } from 'lucide-react';
+import { HOURS } from '../content';
+import { Clock, MapPin, Phone, Mail, AlertCircle } from 'lucide-react';
 
 export const HoursAndLocation: React.FC = () => {
   return (
@@ -35,7 +35,7 @@ export const HoursAndLocation: React.FC = () => {
             </div>
 
             <div className="divide-y divide-[#ece2d6]">
-              {STORE_HOURS.map((schedule) => (
+              {HOURS.days.map((schedule) => (
                 <div
                   key={schedule.day}
                   className={`py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 ${

@@ -53,6 +53,18 @@ export const Footer: React.FC = () => {
           </p>
           <p>
             © {new Date().getFullYear()} Slow Dough Pizza Co. All dough aged with patience.
+            {/* Discreet staff entrance to the content manager (Decap CMS). Access is
+                enforced by GitHub login + repository permissions, not by obscurity. */}
+            <a
+              href={`${import.meta.env.BASE_URL}admin/`}
+              id="staff-admin-link"
+              rel="nofollow"
+              className="ml-2 text-[#4a423b] hover:text-[#a39688] transition-colors"
+              aria-label="Staff content manager"
+              title="Staff only"
+            >
+              ·&nbsp;Staff
+            </a>
           </p>
         </div>
       </div>

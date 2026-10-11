@@ -1,0 +1,17 @@
+# Cloudflare Worker configuration for the Decap CMS OAuth handler.
+#   npx wrangler deploy
+name = "slowdough-cms-auth"
+main = "worker.mjs"
+compatibility_date = "2024-09-01"
+
+[vars]
+# <- CHANGE ME: the repository editors must have write access to
+GITHUB_REPO = "slow-dough-pizza/SlowDough"
+# <- CHANGE ME: origin(s) of the published site, comma separated, no paths
+ALLOWED_ORIGINS = "https://slow-dough-pizza.github.io"
+OAUTH_SCOPE = "repo"
+REQUIRE_WRITE_ACCESS = "true"
+
+# Secrets (never commit these):
+#   npx wrangler secret put GITHUB_CLIENT_ID
+#   npx wrangler secret put GITHUB_CLIENT_SECRET
