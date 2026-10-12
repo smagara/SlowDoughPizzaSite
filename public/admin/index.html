@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Staff-only page: keep it out of search engines. Access itself is
+         enforced by GitHub login + repository collaborator permissions. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Slow Dough Pizza Co. — Content Manager</title>
+    <link rel="icon" href="./logo.svg" type="image/svg+xml" />
+    <!-- Decap reads its configuration from this link -->
+    <link rel="cms-config-url" type="text/yaml" href="./config.yml" />
+    <link rel="stylesheet" href="./admin.css" />
+  </head>
+  <body>
+    <!-- Pinned Decap CMS bundle, copied from node_modules at build time
+         (see tools/vite-plugin-decap-admin.mjs). No CDN dependency. -->
+    <script src="./decap-cms.js"></script>
+    <!-- Site-specific customisation: previews, styling, input sanitising -->
+    <script src="./cms.js"></script>
+  </body>
+</html>

@@ -1,0 +1,98 @@
+# =============================================================================
+# Build & deploy the Slow Dough site to GitHub Pages.
+#
+# Trigger: every push to `main` — which, with branch protection on, only
+# happens when a pull request (e.g. one opened by Decap CMS) is approved and
+# merged. The job re-validates the content, type-checks, runs the unit tests,
+# builds with Vite and publishes the `dist/` folder to GitHub Pages.
+#
+# One-time setup: Settings → Pages → Source = "GitHub Actions".
+# =============================================================================
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deployments at once; let an in-flight deploy finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Validate & build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate CMS content
+        run: npm run validate:content
+
+      - name: Type-check
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Resolve Pages base path
+        id: base
+        # Project sites live at https://<owner>.github.io/<repo>/ so Vite needs
+        # base="/<repo>/". User/organisation sites (<owner>.github.io) and
+        # custom domains use "/". Override with a repository variable
+        # SITE_BASE_PATH if needed (Settings → Secrets and variables → Variables).
+        run: |
+          if [ -n "${{ vars.SITE_BASE_PATH }}" ]; then
+            base="${{ vars.SITE_BASE_PATH }}"
+          elif [[ "${{ github.event.repository.name }}" == *.github.io ]] || [ -n "${{ vars.SITE_CUSTOM_DOMAIN }}" ]; then
+            base="/"
+          else
+            base="/${{ github.event.repository.name }}/"
+          fi
+          echo "path=$base" >> "$GITHUB_OUTPUT"
+          echo "Vite base path: $base"
+
+      - name: Build site
+        run: npm run build
+        env:
+          VITE_BASE_PATH: ${{ steps.base.outputs.path }}
+
+      - name: Add custom domain CNAME (optional)
+        if: ${{ vars.SITE_CUSTOM_DOMAIN != '' }}
+        run: echo "${{ vars.SITE_CUSTOM_DOMAIN }}" > dist/CNAME
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload build artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

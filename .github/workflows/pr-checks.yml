@@ -1,0 +1,91 @@
+# =============================================================================
+# Pull request checks — runs for every PR targeting `main`, including the
+# `cms/<collection>/<slug>` branches that Decap CMS opens for content edits.
+#
+# Make the "Validate & build" check *required* in branch protection so that
+# nothing can be merged (and therefore deployed) unless it passes.
+# =============================================================================
+name: Pull request checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate & build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate CMS content (schema, limits, no HTML/script text)
+        id: content
+        run: |
+          set -o pipefail
+          npm run validate:content 2>&1 | tee content-report.txt
+
+      - name: Type-check
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build site
+        run: npm run build
+        env:
+          VITE_BASE_PATH: /
+
+      - name: Summarise changed content files
+        if: always()
+        run: |
+          {
+            echo "## Content check"
+            echo
+            echo '```'
+            cat content-report.txt 2>/dev/null || echo "(validation did not run)"
+            echo '```'
+            echo
+            echo "### Files changed under content/"
+            git diff --name-status "origin/${{ github.base_ref }}"...HEAD -- content/ | sed 's/^/- /' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on CMS pull requests
+        if: ${{ startsWith(github.head_ref, 'cms/') && success() }}
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- slow-dough-content-check -->';
+            const body = `${marker}
+            ✅ **Content check passed.** This change was made through the content manager (/admin).
+
+            Review the diff, then **Approve** and **Merge** to publish. The site rebuilds and deploys automatically after the merge (about 1–2 minutes).`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.data.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

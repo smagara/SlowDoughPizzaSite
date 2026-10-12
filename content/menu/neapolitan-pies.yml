@@ -1,0 +1,66 @@
+title: Neapolitan Pizzas (Pizze Napoletane)
+subtitle: >-
+  Strict Neapolitan discipline: hand-crushed San Marzano D.O.P. tomatoes, fresh basil, 72-hour cold-fermented dough,
+  flash-baked in 90 seconds at 900°F
+order: 1
+items:
+  - name: Margherita Verace D.O.P.
+    italianName: Pizza Margherita Tradizionale
+    description: >-
+      Crushed San Marzano D.O.P. tomatoes, fresh fior di latte mozzarella d’Agerola, aged pecorino romano, organic
+      Genovese basil, cold-pressed extra virgin olive oil.
+    price: 19
+    available: true
+    tags:
+      - Neapolitan Classic
+      - Vegetarian
+  - name: Marinara Antica (Est. 1734)
+    italianName: Pizza Marinara Tradizionale
+    description: >-
+      Slow-simmered San Marzano tomatoes, thinly shaved fresh garlic, wild Sicilian mountain oregano, sea salt,
+      cold-pressed olive oil. No cheese.
+    price: 16
+    available: true
+    tags:
+      - Ancient Classic
+      - Vegan
+      - Dairy-Free
+  - name: Bufalina D.O.P.
+    italianName: Margherita con Mozzarella di Bufala
+    description: >-
+      San Marzano D.O.P. tomatoes, fresh creamy Mozzarella di Bufala Campana flown in weekly, torn fresh sweet basil,
+      coarse Sicilian sea salt, EVOO.
+    price: 23
+    available: true
+    tags:
+      - House Specialty
+      - Vegetarian
+  - name: La Cosacca (Historic 1844)
+    italianName: Antica Pizza Cosacca
+    description: >-
+      Crushed sweet San Marzano tomatoes, abundant grated 18-month Pecorino Romano D.O.P., fresh sweet basil, cracked
+      black pepper, extra virgin olive oil. The historic minimalist street pizza of Naples.
+    price: 17
+    available: true
+    tags:
+      - Historic Recipe
+      - Vegetarian
+  - name: Diavola Napoletana
+    italianName: Pizza alla Diavola con Peperoncino
+    description: >-
+      San Marzano D.O.P. sauce, smoked provola affumicata cheese, artisan spicy salame napoletano, crushed fermented
+      Calabrian hot chili paste, wild mountain oregano.
+    price: 22
+    available: true
+    tags:
+      - Spicy
+      - House Favorite
+  - name: Capricciosa Napoletana
+    italianName: Pizza Capricciosa Tradizionale
+    description: >-
+      San Marzano tomato base, fior di latte, artisanal prosciutto cotto (rosemary ham), wood-roasted cremini mushrooms,
+      tender artichoke hearts, Gaeta black olives.
+    price: 24
+    available: true
+    tags:
+      - Traditional

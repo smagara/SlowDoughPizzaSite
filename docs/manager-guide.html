@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Slow Dough — Content Manager Guide</title>
+<style>
+  @page { size: Letter; margin: 0.45in 0.5in 0.45in 0.5in; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #24211e; font-size: 9.6pt; line-height: 1.35; background: #fff; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; margin: 0; }
+  .masthead { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #24211e; padding-bottom: 8px; margin-bottom: 10px; }
+  .masthead h1 { font-size: 19pt; letter-spacing: -0.01em; }
+  .masthead .sub { font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: #7d7165; font-weight: 600; }
+  .masthead .right { text-align: right; font-size: 9pt; color: #5c5045; }
+  .banner { background: #24211e; color: #e8ded3; font-size: 9.2pt; padding: 7px 12px; border-radius: 6px; margin: 8px 0 12px; display: flex; gap: 10px; align-items: center; }
+  .banner .dot { width: 8px; height: 8px; border-radius: 99px; background: #c85a32; display: inline-block; flex: none; }
+  h2 { font-size: 12.5pt; color: #24211e; margin: 9px 0 5px; padding-bottom: 3px; border-bottom: 1px solid #e5dcce; }
+  h2 .n { display: inline-block; width: 22px; height: 22px; border-radius: 99px; background: #c85a32; color: #fff; font-family: system-ui, sans-serif; font-size: 10pt; font-weight: 700; text-align: center; line-height: 22px; margin-right: 7px; vertical-align: 2px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 14px; }
+  .step { break-inside: avoid; }
+  .step p { margin: 4px 0 0; }
+  .shot { border: 1px solid #d8ccbd; border-radius: 6px; overflow: hidden; background: #faf8f5; }
+  .shot img { display: block; width: 100%; height: auto; }
+  .cap { font-size: 8pt; color: #7d7165; margin-top: 3px; }
+  .tip { background: #f0e7dc; border-left: 3px solid #c85a32; padding: 6px 10px; border-radius: 0 6px 6px 0; margin: 6px 0; font-size: 9.4pt; }
+  .warn { background: #fbe3da; border-left: 3px solid #a83a1c; }
+  table { border-collapse: collapse; width: 100%; font-size: 9.2pt; margin-top: 4px; }
+  th, td { text-align: left; padding: 4px 7px; border-bottom: 1px solid #e5dcce; vertical-align: top; }
+  th { background: #f0e7dc; color: #8a4224; font-size: 8.3pt; letter-spacing: 0.06em; text-transform: uppercase; }
+  code, .k { font-family: ui-monospace, Menlo, Consolas, monospace; background: #f0e7dc; padding: 0 4px; border-radius: 3px; font-size: 9pt; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 8.6pt; font-weight: 600; }
+  .pill.draft { background: #eee7dd; color: #63574c; } .pill.review { background: #fff4d6; color: #7a5a12; } .pill.ready { background: #e4ede1; color: #335928; }
+  .pagebreak { break-before: page; }
+  ul { margin: 4px 0 0 18px; padding: 0; } li { margin: 2px 0; }
+  .foot { margin-top: 10px; border-top: 1px solid #e5dcce; padding-top: 5px; font-size: 8.3pt; color: #7d7165; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div>
+    <h1>Slow Dough Pizza Co. — Content Manager Guide</h1>
+    <div class="sub">Updating the menu, blog &amp; dough announcement yourself</div>
+  </div>
+  <div class="right">For the owner / manager<br>Version 1.0 · about 5 minutes</div>
+</div>
+
+<div class="banner"><span class="dot"></span><span><strong>Where:</strong> open <strong>your-site/admin</strong> (or click the small “Staff” link at the very bottom of the website). Sign in with the GitHub account that was invited to the Slow Dough repository.</span></div>
+
+<div class="grid2">
+  <div>
+    <h2><span class="n">1</span>Sign in</h2>
+    <div class="step">
+      <div class="shot"><img src="screenshots/c-login.png" alt="Login page"></div>
+      <div class="cap">Click <strong>Login with GitHub</strong>; a small window opens — approve it once. If it says “not a collaborator with write access”, ask the site owner to invite your GitHub account.</div>
+    </div>
+  </div>
+  <div>
+    <h2><span class="n">2</span>Pick what to change</h2>
+    <div class="step">
+      <div class="shot"><img src="screenshots/c-home.png" alt="Collections"></div>
+      <div class="cap"><strong>Site Settings</strong> = Dough Announcement + Hours &amp; Schedule · <strong>Daily Menu</strong> = one entry per category · <strong>Blog Posts</strong>. Click an entry to edit, or <em>New …</em> to add one.</div>
+    </div>
+  </div>
+</div>
+
+<h2><span class="n">3</span>Edit — the right-hand side is a live preview in the site’s own look</h2>
+<div class="step">
+  <div class="shot"><img src="screenshots/c-edit-menu.png" alt="Editing a menu category"></div>
+  <div class="cap"><strong>Daily Menu:</strong> change a price, text or tags. Switch <strong>Available today</strong> off to show “Sold Out Today” without deleting the dish. <em>Add menu items</em> adds a dish, ✕ removes it, the ≡ handle reorders. Tags “Vegetarian” / “Vegan” get the green leaf.</div>
+</div>
+
+<div class="grid2" style="margin-top:8px">
+  <div class="step">
+    <div class="shot"><img src="screenshots/c-announcement.png" alt="Editing the announcement"></div>
+    <div class="cap"><strong>Dough Announcement</strong> — the dark strip at the top of every page: headline, detail text, on/off switch, and an <em>Alert</em> style for sold-out nights or closures.</div>
+  </div>
+  <div class="step">
+    <div class="shot"><img src="screenshots/c-blog.png" alt="New blog post"></div>
+    <div class="cap"><strong>Blog Posts → New Blog Post</strong>: title, author, publish date, excerpt (shown on the card), key takeaways, and the essay in <em>Body</em>. Use the toolbar for headings, bold/italic, quotes, lists, links. Newest first.</div>
+  </div>
+</div>
+
+<div class="pagebreak"></div>
+
+<h2><span class="n">4</span>Save — nothing is live yet</h2>
+<div class="step">
+  <div class="shot"><img src="screenshots/c-toolbar-saved.png" alt="Toolbar after saving"></div>
+  <div class="cap">Click <strong>Save</strong>. The change is stored as a <span class="pill draft">Draft</span> that only you and the reviewer can see. Keep editing and saving as often as you like.</div>
+</div>
+
+<div class="grid2" style="margin-top:8px">
+  <div>
+    <h2><span class="n">5</span>Send it for review</h2>
+    <div class="step">
+      <div class="shot"><img src="screenshots/c-status-menu.png" alt="Status menu"></div>
+      <div class="cap">Open <strong>Status</strong> and choose <span class="pill review">In review</span>, or <span class="pill ready">Ready</span> when it is final. The reviewer is notified.</div>
+    </div>
+  </div>
+  <div>
+    <h2><span class="n">6</span>If something is refused</h2>
+    <div class="step">
+      <div class="shot"><img src="screenshots/c-validation.png" alt="Validation message"></div>
+      <div class="cap"><strong>Plain text only.</strong> A red message under a field means the text contains something that looks like web code (e.g. <code>&lt;b&gt;</code>, <code>&lt;script&gt;</code>) or is too long. Remove it and save again — nothing is lost.</div>
+    </div>
+  </div>
+</div>
+
+<h2><span class="n">7</span>Review &amp; go live</h2>
+<div class="step">
+  <div class="shot"><img src="screenshots/c-workflow.png" alt="Workflow board"></div>
+  <div class="cap">The <strong>Workflow</strong> tab lists every pending change. Behind the scenes each one is a GitHub <em>pull request</em> on its own branch — never directly on the live site. A reviewer approves and merges it on GitHub; the website then rebuilds itself and the change is live in <strong>about 2 minutes</strong>. If you are also the reviewer, open the entry and click <em>Publish → Publish now</em> once it has been approved.</div>
+</div>
+
+<h2>Good to know</h2>
+<div class="grid2">
+  <div>
+    <table>
+      <tr><th>Status</th><th>Meaning</th></tr>
+      <tr><td><span class="pill draft">Draft</span></td><td>Saved, visible only in the admin. Keep editing freely.</td></tr>
+      <tr><td><span class="pill review">In review</span></td><td>Waiting for the reviewer to approve.</td></tr>
+      <tr><td><span class="pill ready">Ready</span></td><td>Approved / final — about to be published.</td></tr>
+      <tr><td><strong>Published</strong></td><td>Merged; the site rebuilds and goes live in ~2 min.</td></tr>
+    </table>
+  </div>
+  <div>
+    <ul>
+      <li><strong>Changed your mind?</strong> Open the entry from Workflow and click <em>Delete unpublished entry</em>.</li>
+      <li><strong>Something live is wrong?</strong> Edit the entry again and save — the fix goes through the same quick review.</li>
+      <li><strong>Not seeing it?</strong> Wait 2 minutes, then refresh the website (Ctrl/Cmd + Shift + R).</li>
+      <li><strong>Prices</strong> are numbers only, e.g. <code>19</code> or <code>19.5</code>. <strong>Dates</strong> use the calendar picker.</li>
+      <li><strong>Can’t sign in?</strong> Your GitHub account needs <em>Write</em> access to the site repository — ask the site owner.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="foot"><span>Slow Dough Pizza Co. · Content Manager Guide · v1.0</span><span>Questions? Contact the site developer.</span></div>
+</body>
+</html>

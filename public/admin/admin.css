@@ -1,0 +1,343 @@
+/* =============================================================================
+   Slow Dough Pizza Co. — skin for the Decap CMS admin UI
+   -----------------------------------------------------------------------------
+   Decap styles itself with Emotion at runtime and its class names look like
+   `css-<hash>-<ComponentName>`. The hash changes between versions but the
+   component label is stable, so rules below use `[class*="-ComponentName"]`
+   selectors. `!important` is needed because Decap's own <style> tags are
+   injected after this sheet.
+
+   Palette (same as src/index.css / the site):
+     cream #faf8f5 · card #faf7f2 · ink #24211e · accent #c85a32 · line #e5dcce
+   ============================================================================= */
+
+:root {
+  --sd-cream: #faf8f5;
+  --sd-card: #fffdfa;
+  --sd-ink: #24211e;
+  --sd-ink-soft: #38312b;
+  --sd-muted: #7d7165;
+  --sd-line: #e5dcce;
+  --sd-accent: #c85a32;
+  --sd-accent-dark: #8a4224;
+  --sd-accent-soft: #f0e7dc;
+  --sd-green: #335928;
+  --sd-serif: Georgia, 'Times New Roman', serif;
+  --sd-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html, body {
+  background: var(--sd-cream) !important;
+  font-family: var(--sd-sans) !important;
+  color: var(--sd-ink);
+}
+
+/* ---- Login page ----------------------------------------------------------- */
+[class*="-StyledAuthenticationPage"] {
+  background: var(--sd-cream) !important;
+}
+[class*="-StyledAuthenticationPage"] [class*="-CustomIconWrapper"],
+[class*="-StyledAuthenticationPage"] img {
+  max-width: 320px;
+  width: 100%;
+  height: auto;
+}
+[class*="-LoginButton"] {
+  background: var(--sd-ink) !important;
+  color: var(--sd-cream) !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  padding: 12px 28px !important;
+}
+[class*="-LoginButton"]:hover {
+  background: var(--sd-ink-soft) !important;
+}
+[class*="-GoBackButtonStyle"] {
+  color: var(--sd-muted) !important;
+}
+
+/* ---- App header ------------------------------------------------------------ */
+[class*="-AppHeader"] {
+  background: var(--sd-ink) !important;
+  border-bottom: 1px solid #3b342d !important;
+  box-shadow: none !important;
+}
+[class*="-AppHeaderButton"],
+[class*="-AppHeaderNavLink"],
+[class*="-AppHeaderSiteLink"] {
+  color: #c9bdb0 !important;
+  font-weight: 500 !important;
+}
+[class*="-AppHeaderButton"]:hover,
+[class*="-AppHeaderNavLink"]:hover {
+  color: #faf8f5 !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+[class*="-AppHeaderNavLink"].header-link-active,
+[class*="-AppHeaderButton"].header-link-active {
+  color: var(--sd-accent) !important;
+  border-bottom: 2px solid var(--sd-accent) !important;
+  background: transparent !important;
+}
+[class*="-AppHeaderQuickNewButton"] {
+  background: var(--sd-accent) !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+[class*="-AppHeaderQuickNewButton"]:hover {
+  background: #b04e2a !important;
+}
+[class*="-AppHeaderActions"] [class*="-AppHeaderSiteLink"] {
+  color: #a39688 !important;
+  font-size: 13px !important;
+}
+
+/* The site has no image fields, so the Media library tab is hidden to keep
+   the UI simple. Remove this rule if image widgets are added later. */
+[class*="-AppHeaderNavList"] li:has(> button[class*="-AppHeaderButton"]) {
+  display: none !important;
+}
+
+/* ---- Collections sidebar & cards ------------------------------------------ */
+[class*="-SidebarContainer"],
+[class*="-CollectionTopContainer"],
+[class*="-ListCard-"],
+[class*="-GridCard-"],
+[class*="-WorkflowCard-"] {
+  background: var(--sd-card) !important;
+  border: 1px solid var(--sd-line) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 2px rgba(36, 33, 30, 0.04) !important;
+}
+[class*="-SidebarHeading"],
+[class*="-CollectionTopHeading"],
+[class*="-ListCardTitle"],
+[class*="-CardHeading"],
+[class*="-WorkflowTopHeading"],
+[class*="-WorkflowCard"] h2 {
+  font-family: var(--sd-serif) !important;
+  color: var(--sd-ink) !important;
+}
+[class*="-CollectionTopHeading"],
+[class*="-WorkflowTopHeading"] {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+}
+[class*="-CollectionTopDescription"],
+[class*="-WorkflowTopDescription"] {
+  color: var(--sd-muted) !important;
+}
+[class*="-SidebarNavLink"] {
+  color: var(--sd-ink-soft) !important;
+  border-radius: 8px !important;
+  border-left: 0 !important;
+}
+[class*="-SidebarNavLink"]:hover {
+  background: var(--sd-accent-soft) !important;
+  color: var(--sd-ink) !important;
+}
+[class*="-SidebarNavLink"].sidebar-active {
+  background: var(--sd-accent-soft) !important;
+  color: var(--sd-accent-dark) !important;
+  font-weight: 600 !important;
+}
+[class*="-SidebarNavLink"] svg,
+[class*="-SidebarNavLink"] path {
+  fill: currentColor !important;
+}
+[class*="-SearchInput"] {
+  background: var(--sd-card) !important;
+  border: 1px solid var(--sd-line) !important;
+  border-radius: 8px !important;
+}
+[class*="-ListCardLink"]:hover [class*="-ListCard-"],
+[class*="-GridCardLink"]:hover [class*="-GridCard-"] {
+  border-color: #cfbeaa !important;
+}
+
+/* ---- Buttons ---------------------------------------------------------------- */
+[class*="-CollectionControlsContainer"] [class*="button"],
+[class*="-ViewControlsButton"] {
+  border-radius: 8px !important;
+}
+[class*="-CollectionTopNewButton"],
+[class*="-NewEntryButton"] {
+  background: var(--sd-accent) !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+[class*="-PublishedToolbarButton"],
+[class*="-ToolbarButton"][class*="-default"],
+[class*="-DropdownButton"][class*="PublishedToolbarButton"],
+[class*="-SaveButton"] {
+  border-radius: 8px !important;
+}
+[class*="-ToolbarContainer"] [class*="lightBlue"],
+[class*="-ToolbarContainer"] [class*="-SaveButton"] {
+  background: var(--sd-accent) !important;
+  color: #fff !important;
+}
+[class*="-ToolbarContainer"] [class*="-DeleteButton"] {
+  border-radius: 8px !important;
+}
+[class*="-ToolbarContainer"] [class*="-PublishedToolbarButton"],
+[class*="-ToolbarContainer"] [class*="-StatusButton"] {
+  background: var(--sd-ink) !important;
+  color: var(--sd-cream) !important;
+  border-radius: 8px !important;
+}
+[class*="-AddButton"] {
+  background: var(--sd-ink) !important;
+  color: var(--sd-cream) !important;
+  border-radius: 6px !important;
+}
+
+/* ---- Editor ---------------------------------------------------------------- */
+[class*="-EditorContainer"],
+[class*="-ControlPaneContainer"] {
+  background: var(--sd-cream) !important;
+}
+[class*="-ToolbarContainer"] {
+  background: var(--sd-card) !important;
+  border-bottom: 1px solid var(--sd-line) !important;
+  box-shadow: none !important;
+}
+[class*="-ToolbarSectionBackLink"] {
+  border-right: 1px solid var(--sd-line) !important;
+}
+[class*="-BackCollection"] {
+  color: var(--sd-muted) !important;
+}
+[class*="-FieldLabel"] {
+  background: var(--sd-accent-soft) !important;
+  color: var(--sd-accent-dark) !important;
+  font-family: var(--sd-sans) !important;
+  letter-spacing: 0.06em !important;
+  border-radius: 6px 6px 0 0 !important;
+}
+[class*="-ControlContainer"] {
+  border: 1px solid var(--sd-line) !important;
+  border-radius: 8px !important;
+  background: var(--sd-card) !important;
+}
+[class*="-ControlContainer"]:focus-within {
+  border-color: var(--sd-accent) !important;
+  box-shadow: 0 0 0 3px rgba(200, 90, 50, 0.15) !important;
+}
+[class*="-ControlContainer"] input,
+[class*="-ControlContainer"] textarea,
+[class*="-ControlContainer"] select,
+[class*="-TextControl"] {
+  font-family: var(--sd-sans) !important;
+  color: var(--sd-ink) !important;
+}
+[class*="-ControlHint"] {
+  color: var(--sd-muted) !important;
+}
+[class*="-ControlErrorsList"],
+[class*="-ControlErrorsList"] li {
+  color: #a83a1c !important;
+  font-weight: 600 !important;
+}
+/* validation errors: red frame on the label & box */
+[class*="-FieldLabel"][class*="isError"],
+[class*="-fieldLabelError"] {
+  background: #fbe3da !important;
+  color: #a83a1c !important;
+}
+[class*="-ListItem"],
+[class*="-SortableListItem"] {
+  border: 1px solid var(--sd-line) !important;
+  border-radius: 8px !important;
+}
+[class*="-TopBar"],
+[class*="-StyledListItemTopBar"] {
+  background: #f5ede3 !important;
+  border-bottom: 1px solid var(--sd-line) !important;
+}
+[class*="-NestedObjectLabel"] {
+  color: var(--sd-ink-soft) !important;
+  font-weight: 600 !important;
+}
+[role="switch"] [class*="-ToggleBackground"] {
+  background: #ded3c5 !important;
+}
+[role="switch"][aria-checked="true"] [class*="-ToggleBackground"] {
+  background: var(--sd-accent) !important;
+}
+[role="switch"] [class*="-ToggleHandle"] {
+  background: #fff !important;
+  box-shadow: 0 1px 3px rgba(36, 33, 30, 0.35) !important;
+}
+/* Markdown editor toolbar */
+[class*="-ToolbarContainer"][class*="Markdown"],
+[class*="-StyledToolbar"] {
+  background: #f5ede3 !important;
+  border-bottom: 1px solid var(--sd-line) !important;
+}
+[class*="-ToolbarButton"][class*="isActive"],
+[class*="-ToolbarButton"][class*="active"] {
+  color: var(--sd-accent) !important;
+}
+
+/* Preview pane frame */
+[class*="-PreviewPaneContainer"],
+[class*="-PreviewPaneFrame"] {
+  background: var(--sd-cream) !important;
+}
+[class*="-StyledSplitPane"] {
+  background: var(--sd-cream) !important;
+}
+[class*="-PreviewButtonContainer"] [class*="-EditorToggle"] {
+  background: var(--sd-card) !important;
+  border: 1px solid var(--sd-line) !important;
+  color: var(--sd-accent) !important;
+}
+
+/* ---- Editorial workflow board --------------------------------------------- */
+[class*="-WorkflowContainer"] {
+  background: var(--sd-cream) !important;
+}
+[class*="-ColumnHeader"] {
+  font-family: var(--sd-serif) !important;
+  background: var(--sd-accent-soft) !important;
+  color: var(--sd-accent-dark) !important;
+  border-radius: 10px !important;
+}
+[class*="-WorkflowCard"] [class*="-CardButton"],
+[class*="-WorkflowCard"] button {
+  border-radius: 6px !important;
+}
+
+/* ---- Toasts & modals ------------------------------------------------------- */
+.Toastify__toast {
+  font-family: var(--sd-sans) !important;
+  border-radius: 10px !important;
+}
+.Toastify__toast--success {
+  background: var(--sd-green) !important;
+}
+.Toastify__toast--error {
+  background: #a83a1c !important;
+}
+[class*="-StyledModal"],
+[class*="-ModalContainer"] {
+  border-radius: 14px !important;
+  border: 1px solid var(--sd-line) !important;
+}
+
+/* ---- Small type polish ----------------------------------------------------- */
+h1, h2, h3 {
+  font-family: var(--sd-serif);
+}
+a {
+  color: var(--sd-accent);
+}
+
+/* Site link inside the editor toolbar: Decap gives it a dark box by default */
+[class*="-ToolbarContainer"] [class*="-AppHeaderSiteLink"] {
+  background: transparent !important;
+  color: var(--sd-muted) !important;
+}

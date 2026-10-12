@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Menu, X, Clock, MapPin, Sparkles } from 'lucide-react';
+import { Menu, X, Clock, MapPin } from 'lucide-react';
+import { ANNOUNCEMENT, HOURS } from '../content';
 
 interface NavbarProps {
   activeSection: string;
@@ -24,13 +25,33 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection, onNavigate }) => 
 
   return (
     <header className="sticky top-0 z-40 bg-[#faf8f5]/95 backdrop-blur-md border-b border-[#e6ddd2] transition-colors">
-      {/* Top micro banner */}
-      <div className="bg-[#24211e] text-[#e8ded3] text-xs py-1.5 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-[#c85a32] animate-pulse inline-block" />
-        <span>Today's Dough: 72-Hour Cold Cellar Ferment</span>
-        <span className="text-[#8c8278] hidden sm:inline">•</span>
-        <span className="text-[#b5aaa0] hidden sm:inline">Doors open at 4:30 PM (Wed–Sun)</span>
-      </div>
+      {/* Top micro banner – the "Dough announcement", editable in the CMS */}
+      {ANNOUNCEMENT.enabled && (
+        <div
+          id="dough-announcement"
+          className={`text-xs py-1.5 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2 ${
+            ANNOUNCEMENT.style === 'alert'
+              ? 'bg-[#8c3d1e] text-[#fbeee6]'
+              : 'bg-[#24211e] text-[#e8ded3]'
+          }`}
+          role="status"
+        >
+          <span
+            className={`w-2 h-2 rounded-full animate-pulse inline-block ${
+              ANNOUNCEMENT.style === 'alert' ? 'bg-[#f5d0bf]' : 'bg-[#c85a32]'
+            }`}
+          />
+          <span>{ANNOUNCEMENT.headline}</span>
+          {ANNOUNCEMENT.detail && (
+            <>
+              <span className={`hidden sm:inline ${ANNOUNCEMENT.style === 'alert' ? 'text-[#e3b3a0]' : 'text-[#8c8278]'}`}>•</span>
+              <span className={`hidden sm:inline ${ANNOUNCEMENT.style === 'alert' ? 'text-[#f5d0bf]' : 'text-[#b5aaa0]'}`}>
+                {ANNOUNCEMENT.detail}
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
@@ -81,7 +102,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection, onNavigate }) => 
               id="header-hours-badge"
             >
               <Clock className="w-3.5 h-3.5 text-[#c85a32]" />
-              <span>Wed–Sun • 4:30 PM</span>
+              <span>{HOURS.summary}</span>
             </button>
           </div>
 
@@ -121,7 +142,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeSection, onNavigate }) => 
             </div>
             <div className="flex items-center gap-2 text-xs text-[#6e6357] px-4 py-1">
               <Clock className="w-4 h-4 text-[#c85a32]" />
-              <span>Wed–Sun from 4:30 PM • Walk-ins Welcome</span>
+              <span>{HOURS.summary} • Walk-ins Welcome</span>
             </div>
           </div>
         </div>

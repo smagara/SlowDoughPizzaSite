@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MENU_CATEGORIES } from '../data/pizzaShopData';
+import { MENU_CATEGORIES } from '../content';
 import { Leaf, Info } from 'lucide-react';
 
 export const MenuSection: React.FC = () => {
@@ -75,7 +75,9 @@ export const MenuSection: React.FC = () => {
                   <div
                     key={item.id}
                     id={`menu-item-${item.id}`}
-                    className="bg-[#faf7f2] p-5 sm:p-6 rounded-xl border border-[#e5dcce] hover:border-[#cfbeaa] transition-all flex flex-col justify-between"
+                    className={`bg-[#faf7f2] p-5 sm:p-6 rounded-xl border border-[#e5dcce] hover:border-[#cfbeaa] transition-all flex flex-col justify-between ${
+                      item.available ? '' : 'opacity-70'
+                    }`}
                   >
                     <div>
                       {/* Title & Price Line */}
@@ -102,8 +104,13 @@ export const MenuSection: React.FC = () => {
                     </div>
 
                     {/* Tags / Dietary Badges */}
-                    {item.tags && item.tags.length > 0 && (
+                    {(item.tags.length > 0 || !item.available) && (
                       <div className="mt-4 pt-3 border-t border-[#eee5d8] flex flex-wrap items-center gap-1.5">
+                        {!item.available && (
+                          <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded bg-[#24211e] text-[#faf8f5] uppercase tracking-wide">
+                            Sold Out Today
+                          </span>
+                        )}
                         {item.tags.map((tag) => (
                           <span
                             key={tag}

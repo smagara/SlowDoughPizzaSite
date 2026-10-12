@@ -1,0 +1,327 @@
+# =============================================================================
+# Decap CMS configuration — Slow Dough Pizza Co.
+# =============================================================================
+# This file drives the editing UI at /admin. It is served as a static file.
+#
+# Two modes are supported with this single file:
+#
+#   • LOCAL (developers):  `npm run dev:cms` starts Vite + the Decap local
+#     proxy. When the admin is opened on localhost and the proxy is running,
+#     Decap writes straight to the files in content/ — no GitHub login needed.
+#
+#   • PRODUCTION (the pizza shop):  the GitHub backend below is used. Editors
+#     sign in with GitHub through the OAuth handler in oauth/. Every save
+#     creates a `cms/<collection>/<slug>` branch and a pull request that a
+#     reviewer approves and merges; the merge triggers the Pages deploy.
+#
+# Items marked `# <- CHANGE ME` must be set once by the developer during setup.
+# =============================================================================
+
+backend:
+  name: github
+  repo: slow-dough-pizza/SlowDough # <- CHANGE ME: "<github-owner>/<repository>"
+  branch: main
+  # URL of the deployed OAuth handler (see oauth/README.md). No trailing slash.
+  base_url: https://slowdough-cms-auth.example.workers.dev # <- CHANGE ME
+  auth_endpoint: auth
+  # `repo` is required for private repositories; `public_repo` is enough for public ones.
+  auth_scope: repo
+  # Squash each content PR into a single commit on main for a tidy history.
+  squash_merges: true
+  commit_messages:
+    create: 'content: add {{collection}} "{{slug}}"'
+    update: 'content: update {{collection}} "{{slug}}"'
+    delete: 'content: remove {{collection}} "{{slug}}"'
+    uploadMedia: 'content: upload {{path}}'
+    deleteMedia: 'content: delete {{path}}'
+
+# Use the local proxy (decap-server) when the admin is opened on localhost.
+# Ignored on any other host, so it is safe to leave enabled in production.
+local_backend: true
+
+# Editorial workflow = every change goes through Draft → In Review → Ready and
+# is persisted as a pull request on a feature branch (never directly on main).
+publish_mode: editorial_workflow
+# No per-PR preview deployments exist, so hide Decap's "Check for preview" button.
+show_preview_links: false
+
+# No image fields are used today; these are required keys for Decap.
+media_folder: public/uploads
+public_folder: /uploads
+
+site_url: https://slow-dough-pizza.github.io/SlowDough # <- CHANGE ME (live site, used for "View site" link)
+display_url: https://slow-dough-pizza.github.io/SlowDough # <- CHANGE ME
+logo_url: ./logo.svg
+locale: en
+
+slug:
+  encoding: unicode
+  clean_accents: true
+  sanitize_replacement: '-'
+
+# -----------------------------------------------------------------------------
+# Collections
+# -----------------------------------------------------------------------------
+# Validation notes
+#   * `pattern` rules below reject HTML-like text (a "<" followed by a tag
+#     name) and script URLs in the browser, giving the editor instant feedback.
+#   * public/admin/cms.js additionally strips anything suspicious on save.
+#   * tools/validate-content.mjs re-validates every pull request in CI, and
+#     the site renders all text through React (auto-escaped) — so the browser
+#     rules are a convenience, not the security boundary.
+# -----------------------------------------------------------------------------
+collections:
+  # ---- Site settings (single files) -----------------------------------------
+  - name: settings
+    label: Site Settings
+    description: The dough announcement banner and the weekly hours shown on the site.
+    editor:
+      preview: true
+    files:
+      - name: announcement
+        label: Dough Announcement
+        file: content/settings/announcement.yml
+        description: The dark banner at the very top of every page.
+        fields:
+          - label: Show the banner
+            name: enabled
+            widget: boolean
+            default: true
+            hint: Turn off to hide the banner completely.
+          - label: Headline
+            name: headline
+            widget: string
+            hint: 'Example: "Today''s Dough: 72-Hour Cold Cellar Ferment" or "Sold out — see you Wednesday!"'
+            pattern:
+              - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])(?![\s\S]*(?:javascript|vbscript)\s*:)[\s\S]{1,120}$'
+              - 'Plain text only (no HTML or scripts), 1–120 characters'
+          - label: Detail
+            name: detail
+            widget: string
+            required: false
+            hint: Shown after the headline on larger screens, e.g. opening time.
+            pattern:
+              - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])(?![\s\S]*(?:javascript|vbscript)\s*:)[\s\S]{0,120}$'
+              - 'Plain text only (no HTML or scripts), up to 120 characters'
+          - label: Style
+            name: style
+            widget: select
+            default: standard
+            options:
+              - { label: 'Standard (dark)', value: standard }
+              - { label: 'Alert (terracotta — for sold-out / closures)', value: alert }
+
+      - name: hours
+        label: Hours & Schedule
+        file: content/settings/hours.yml
+        description: Weekly opening hours shown in "Hours & Location" and the header badge.
+        fields:
+          - label: Header summary
+            name: summary
+            widget: string
+            hint: 'Short text for the header badge, e.g. "Wed–Sun • 4:30 PM".'
+            pattern:
+              - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])[\s\S]{1,60}$'
+              - 'Plain text only, 1–60 characters'
+          - label: Days
+            name: days
+            widget: list
+            min: 1
+            max: 7
+            allow_add: true
+            collapsed: false
+            summary: '{{fields.day}}: {{fields.hours}}'
+            fields:
+              - { label: Day, name: day, widget: string, pattern: ['^[A-Za-z][A-Za-z /&–-]{1,39}$', 'Letters only, e.g. "Monday"'] }
+              - { label: Hours, name: hours, widget: string, hint: 'e.g. "4:30 PM – 9:30 PM" or "Closed"', pattern: ['^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])[\s\S]{1,60}$', 'Plain text only, 1–60 characters'] }
+              - { label: Note, name: statusNote, widget: string, required: false, pattern: ['^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])[\s\S]{0,120}$', 'Plain text only, up to 120 characters'] }
+              - { label: Closed this day, name: isClosed, widget: boolean, default: false }
+
+  # ---- Daily menu ------------------------------------------------------------
+  - name: menu
+    label: Daily Menu
+    label_singular: Menu Category
+    description: One entry per menu category (pizzas, small plates, drinks…). Edit items, prices and availability inside each category.
+    folder: content/menu
+    extension: yml
+    format: yml
+    create: true
+    delete: true
+    identifier_field: title
+    slug: '{{slug}}'
+    summary: '{{title}}'
+    sortable_fields: [order, title]
+    editor:
+      preview: true
+    fields:
+      - label: Category title
+        name: title
+        widget: string
+        hint: 'Text in parentheses is hidden in the filter buttons, e.g. "Neapolitan Pizzas (Pizze Napoletane)".'
+        pattern:
+          - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])[\s\S]{1,120}$'
+          - 'Plain text only, 1–120 characters'
+      - label: Subtitle
+        name: subtitle
+        widget: text
+        required: false
+        pattern:
+          - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])(?![\s\S]*(?:javascript|vbscript)\s*:)[\s\S]{0,400}$'
+          - 'Plain text only (no HTML or scripts), up to 400 characters'
+      - label: Display order
+        name: order
+        widget: number
+        value_type: int
+        min: 1
+        max: 99
+        default: 10
+        hint: Categories are shown lowest number first.
+      - label: Menu items
+        name: items
+        widget: list
+        min: 1
+        max: 40
+        collapsed: false
+        minimize_collapsed: true
+        summary: '{{fields.name}} — ${{fields.price}}'
+        fields:
+          - label: Name
+            name: name
+            widget: string
+            pattern:
+              - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])[\s\S]{1,120}$'
+              - 'Plain text only, 1–120 characters'
+          - label: Italian name
+            name: italianName
+            widget: string
+            required: false
+            pattern:
+              - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])[\s\S]{0,120}$'
+              - 'Plain text only, up to 120 characters'
+          - label: Description
+            name: description
+            widget: text
+            pattern:
+              - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])(?![\s\S]*(?:javascript|vbscript)\s*:)[\s\S]{1,800}$'
+              - 'Plain text only (no HTML or scripts), 1–800 characters'
+          - label: Price (USD)
+            name: price
+            widget: number
+            value_type: float
+            min: 0
+            max: 500
+            step: 0.5
+          - label: Available today
+            name: available
+            widget: boolean
+            default: true
+            hint: Switch off to show the item as "Sold Out Today" without deleting it.
+          - label: Tags
+            name: tags
+            widget: list
+            required: false
+            default: []
+            max: 6
+            allow_add: true
+            hint: 'Short labels shown under the item. Use "Vegetarian" or "Vegan" to get the green leaf badge.'
+            field:
+              label: Tag
+              name: tag
+              widget: string
+              pattern: ['^[A-Za-z0-9][A-Za-z0-9 .&/''’-]{0,39}$', 'Letters, numbers and spaces only, up to 40 characters']
+
+  # ---- Blog posts ------------------------------------------------------------
+  - name: blog
+    label: Blog Posts
+    label_singular: Blog Post
+    description: Essays shown in "The Baker's Journal". Newest first.
+    folder: content/blog
+    extension: md
+    format: frontmatter
+    create: true
+    delete: true
+    slug: '{{year}}-{{month}}-{{day}}-{{slug}}'
+    summary: '{{title}} — {{author}} ({{date}})'
+    sortable_fields: [date, title, author]
+    editor:
+      preview: true
+    fields:
+      - label: Title
+        name: title
+        widget: string
+        pattern:
+          - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])[\s\S]{1,160}$'
+          - 'Plain text only, 1–160 characters'
+      - label: Subtitle
+        name: subtitle
+        widget: string
+        required: false
+        hint: One sentence shown in quotes under the title.
+        pattern:
+          - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])[\s\S]{0,400}$'
+          - 'Plain text only, up to 400 characters'
+      - label: Author
+        name: author
+        widget: string
+        default: Marco Bellini
+        pattern: ['^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])[\s\S]{1,80}$', 'Plain text only, 1–80 characters']
+      - label: Author role
+        name: authorRole
+        widget: string
+        required: false
+        default: Head Baker & Pizzaiolo
+        pattern: ['^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])[\s\S]{0,80}$', 'Plain text only, up to 80 characters']
+      - label: Publish date
+        name: date
+        widget: datetime
+        format: 'YYYY-MM-DD'
+        date_format: 'MMMM D, YYYY'
+        time_format: false
+        picker_utc: true
+      - label: Read time
+        name: readTime
+        widget: string
+        required: false
+        default: 4 min read
+        pattern: ['^[0-9]{1,2} min read$', 'Use the form "4 min read"']
+      - label: Illustration
+        name: artType
+        widget: select
+        default: dough
+        options:
+          - { label: 'Dough proofing boxes', value: dough }
+          - { label: 'Wood-fired oven', value: oven }
+      - label: Excerpt
+        name: excerpt
+        widget: text
+        hint: Two or three sentences shown on the blog card.
+        pattern:
+          - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])(?![\s\S]*(?:javascript|vbscript)\s*:)[\s\S]{1,800}$'
+          - 'Plain text only (no HTML or scripts), 1–800 characters'
+      - label: Key takeaways
+        name: keyTakeaways
+        widget: list
+        required: false
+        default: []
+        max: 6
+        allow_add: true
+        hint: Up to six bullet points shown as "Essential Insights".
+        field:
+          label: Takeaway
+          name: takeaway
+          widget: string
+          pattern:
+            - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])(?![\s\S]*(?:javascript|vbscript)\s*:)[\s\S]{1,400}$'
+            - 'Plain text only (no HTML or scripts), 1–400 characters'
+      - label: Body
+        name: body
+        widget: markdown
+        hint: Use the toolbar for headings, bold/italic, quotes, lists and links. HTML is not allowed.
+        # Only the formatting the site knows how to render safely.
+        buttons: [bold, italic, heading-two, heading-three, quote, bulleted-list, numbered-list, link]
+        editor_components: []
+        modes: [rich_text, raw]
+        sanitize_preview: true
+        pattern:
+          - '^(?![\s\S]*<\s*/?\s*[A-Za-z!?/])(?![\s\S]*(?:javascript|vbscript)\s*:)(?![\s\S]*\]\(\s*data\s*:)[\s\S]{1,50000}$'
+          - 'HTML tags and script/data links are not allowed. Use the toolbar for formatting'
