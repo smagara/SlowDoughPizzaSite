@@ -19,10 +19,10 @@
 
 backend:
   name: github
-  repo: slow-dough-pizza/SlowDough # <- CHANGE ME: "<github-owner>/<repository>"
+  repo: https://github.com/smagara/SlowDoughPizzaSite # <- CHANGED ME: "<github-owner>/<repository>"
   branch: main
   # URL of the deployed OAuth handler (see oauth/README.md). No trailing slash.
-  base_url: https://slowdough-cms-auth.example.workers.dev # <- CHANGE ME
+  base_url: https://smagara.github.io/SlowDoughPizzaSite # <- CHANGED ME
   auth_endpoint: auth
   # `repo` is required for private repositories; `public_repo` is enough for public ones.
   auth_scope: repo
@@ -49,8 +49,8 @@ show_preview_links: false
 media_folder: public/uploads
 public_folder: /uploads
 
-site_url: https://slow-dough-pizza.github.io/SlowDough # <- CHANGE ME (live site, used for "View site" link)
-display_url: https://slow-dough-pizza.github.io/SlowDough # <- CHANGE ME
+site_url: https://smagara.github.io/SlowDoughPizzaSite # <- CHANGED ME (live site, used for "View site" link)
+display_url: https://smagara.github.io/SlowDoughPizzaSite # <- CHANGED ME
 logo_url: ./logo.svg
 locale: en
 
