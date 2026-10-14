@@ -1,0 +1,35 @@
+---
+title: "The Grain Matters: Our Philosophy on Flour Selection"
+subtitle: "Why we blend imported Italian Type 00 wheat with regional stone-milled heritage grains."
+author: "Elena Rossi"
+authorRole: "Master Miller & Co-Founder"
+readTime: "5 min read"
+publishedDate: "2026-09-08"
+artType: "oven"
+excerpt: "A dough fermented for three days will destroy weak flours. Here is how we balance protein strength, ash content, and ancient grain aromatics."
+keyTakeaways:
+  - "Standard roller-milled all-purpose flours collapse under 72 hours of enzyme activity; high-strength (W300+) flour is essential."
+  - "Imported Italian Tipo 00 provides unyielding elasticity, fine silkiness, and thermal resistance in a 900°F oven."
+  - "We incorporate 15% freshly stone-milled heritage Red Fife wheat to reintroduce wheat germ oils, mineral depth, and rustic aroma."
+---
+## The Myth of "All Flour Is Equal"
+
+To the casual eye, all white flour looks identical—a fine pale dust. But to a baker, flour is an intricate living ecosystem defined by protein quality, ash content, falling number, and grain heritage.
+
+When a recipe calls for aging dough for 72 hours, using standard supermarket all-purpose flour or low-protein pastry flour will result in catastrophe. The active protease enzymes will chew through the weak gluten strands, and by day three, the dough will liquefy into a sticky, unworkable pool that tears upon contact with the peel.
+
+> You cannot make an extraordinary pizza out of lifeless, bleached flour. The grain must have character, strength, and memory.
+
+## The Italian Tipo "00" Foundation
+
+The backbone of our formula (85%) is an unbleached, non-GMO Italian Tipo "00" flour milled from the central heart of selected soft winter wheats. The "00" designation does not measure protein; it measures ash content—indicating the most meticulously sifted, purest endosperm.
+
+We specifically source a grain with an Alveograph W-index rating of 320 to 340 and a balanced P/L ratio (elasticity to extensibility). This extraordinary strength allows the gluten mesh to withstand three continuous days of enzymatic softening while still stretching paper-thin without snapping back like rubber.
+
+## The 15% Secret: Heritage Stone-Milled Grain
+
+Pure industrial Tipo 00 flour produces an immaculate crust texture, but because the germ and bran are sifted away, it can lack genuine rustic wheat soul. That is why we blend in 15% stone-milled heritage Red Fife wheat sourced directly from regional family farms.
+
+Stone milling operates at low friction temperatures, preserving the live wheat germ and its aromatic essential fatty acids. During our 72-hour cold aging, these intact lipids and complex bran particles gently ferment, imbuing the final bake with notes of toasted hazelnut, sweet malt, and countryside earth.
+
+No chemical preservatives. No bromate conditioners. No malted barley extract to fake browning. Just water, salt, patience, and whole, honest grain.

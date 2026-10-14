@@ -1,0 +1,207 @@
+# ---------------------------------------------------------------------------
+# Decap CMS configuration TEMPLATE for Slow Dough Pizza Co.
+#
+# This file is NOT served as-is. vite.config.ts (plugin "slow-dough-cms-config")
+# fills in the {{TOKENS}} below from /site.config.json and then:
+#   - serves the result at http://localhost:3000/admin/config.yml in `npm run dev`
+#   - emits it to dist/admin/config.yml in `npm run build`
+#
+# ==> To change the GitHub repo, the production site URL, or the OAuth host,
+#     edit /site.config.json -- do not hard-code them here.
+#
+# It is the SINGLE source of truth for both local development and production:
+#   - In local dev (`npm run dev:cms`), Decap auto-detects `local_backend: true`
+#     and talks to the `decap-server` proxy running on http://localhost:8081,
+#     which reads/writes the files in /content directly on disk. No GitHub auth
+#     needed. (Decap only probes for the proxy when the page is on localhost.)
+#   - In production, Decap uses the `backend` block below (GitHub, with OAuth
+#     via the small provider in /oauth-provider) and opens a Pull Request for
+#     every change because `publish_mode: editorial_workflow` is enabled.
+# ---------------------------------------------------------------------------
+
+backend:
+  name: github
+  repo: {{GITHUB_REPO}}
+  branch: {{GITHUB_BRANCH}}
+  # The small OAuth handshake service in /oauth-provider (deployed to Azure
+  # by .github/workflows/deploy-oauth-provider-azure.yml).
+  base_url: {{OAUTH_PROVIDER_URL}}
+  auth_endpoint: auth
+  # Decap opens a feature branch (cms/<collection>/<slug>) and a GitHub
+  # Pull Request into `branch` above for every entry, instead of writing
+  # straight to main. This is what satisfies the "PR + review" requirement.
+  squash_merges: true
+
+# Required so the `local_backend: true` flag (below) is honored when the
+# site is opened from http://localhost:3000/admin during development.
+local_backend: true
+
+publish_mode: editorial_workflow
+
+site_url: {{SITE_URL}}
+display_url: {{SITE_URL}}
+logo_url: {{BASE_PATH}}admin/slow-dough-admin-logo.svg
+
+media_folder: "public/images/uploads"
+public_folder: "{{BASE_PATH}}images/uploads"
+
+slug:
+  encoding: "ascii"
+  clean_accents: true
+  sanitize_replacement: "-"
+
+collections:
+  # -------------------------------------------------------------------
+  # 1) DOUGH ANNOUNCEMENT — single-file collection. Edits the dark top
+  #    banner and the Hero headline/intro copy on the homepage.
+  # -------------------------------------------------------------------
+  - name: "announcement"
+    label: "Dough Announcement"
+    description: >-
+      The scrolling banner at the very top of the site and the homepage
+      headline. Use this for "Today's Dough" updates, holiday closures,
+      or limited-batch alerts.
+    editor:
+      preview: true
+    files:
+      - name: "announcement"
+        label: "Dough Announcement"
+        file: "content/announcement.json"
+        fields:
+          - { label: "Show Banner?", name: "isActive", widget: "boolean", default: true, hint: "Turn the top banner off without deleting the text." }
+          - label: "Banner Text (left side)"
+            name: "badgeText"
+            widget: "string"
+            hint: "Keep under ~60 characters so it fits on one line, e.g. \"Today's Dough: 72-Hour Cold Cellar Ferment\""
+            pattern: ['^[^<>]{1,120}$', "Must be 120 characters or fewer and cannot contain < or > characters."]
+          - label: "Banner Text (right side, optional)"
+            name: "detailText"
+            widget: "string"
+            required: false
+            pattern: ['^[^<>]{0,120}$', "Must be 120 characters or fewer and cannot contain < or > characters."]
+          - label: "Homepage Eyebrow Tag"
+            name: "heroEyebrow"
+            widget: "string"
+            pattern: ['^[^<>]{1,60}$', "Must be 60 characters or fewer and cannot contain < or > characters."]
+          - label: "Homepage Headline"
+            name: "heroHeadline"
+            widget: "string"
+            pattern: ['^[^<>]{1,90}$', "Must be 90 characters or fewer and cannot contain < or > characters."]
+          - label: "Homepage Intro Paragraph"
+            name: "heroBody"
+            widget: "text"
+            pattern: ['^((?!<script).)*$', "For security reasons, <script> tags are not allowed."]
+
+  # -------------------------------------------------------------------
+  # 2) DAILY MENU — single-file collection with nested lists so the
+  #    owner can add/remove/reorder categories and items.
+  # -------------------------------------------------------------------
+  - name: "menu"
+    label: "Daily Menu"
+    description: "Pizzas, small plates, and beverages shown in the Menu section."
+    editor:
+      preview: true
+    files:
+      - name: "menu"
+        label: "Daily Menu"
+        file: "content/menu.json"
+        fields:
+          - { label: "Section Label", name: "sectionLabel", widget: "string" }
+          - { label: "Section Title", name: "sectionTitle", widget: "string" }
+          - { label: "Section Intro", name: "sectionIntro", widget: "text" }
+          - { label: "Ordering / Dine-In Note", name: "orderingNote", widget: "text" }
+          - label: "Menu Categories"
+            name: "categories"
+            widget: "list"
+            summary: "{{fields.title}}"
+            fields:
+              - { label: "Category ID (no spaces)", name: "id", widget: "string", pattern: ['^[a-z0-9-]+$', "Lowercase letters, numbers, and hyphens only."] }
+              - { label: "Category Title", name: "title", widget: "string" }
+              - { label: "Category Subtitle", name: "subtitle", widget: "text" }
+              - label: "Items"
+                name: "items"
+                widget: "list"
+                summary: "{{fields.name}} — ${{fields.price}}"
+                fields:
+                  - { label: "Item ID (no spaces)", name: "id", widget: "string", pattern: ['^[a-z0-9-]+$', "Lowercase letters, numbers, and hyphens only."] }
+                  - { label: "Name", name: "name", widget: "string", pattern: ['^[^<>]{1,80}$', "Must be 80 characters or fewer and cannot contain < or > characters."] }
+                  - { label: "Italian Name", name: "italianName", widget: "string", required: false }
+                  - { label: "Description", name: "description", widget: "text", pattern: ['^((?!<script).)*$', "For security reasons, <script> tags are not allowed."] }
+                  - { label: "Price (USD)", name: "price", widget: "number", value_type: "float", min: 0, max: 100, step: 0.5 }
+                  - { label: "Vegetarian", name: "isVegetarian", widget: "boolean", required: false, default: false }
+                  - { label: "Vegan", name: "isVegan", widget: "boolean", required: false, default: false }
+                  - label: "Tags"
+                    name: "tags"
+                    widget: "list"
+                    required: false
+                    field: { label: "Tag", name: "tag", widget: "string" }
+
+  # -------------------------------------------------------------------
+  # 3) STORE HOURS — single-file collection.
+  # -------------------------------------------------------------------
+  - name: "hours"
+    label: "Store Hours"
+    description: "Weekly hours shown in the Store Hours & Location section."
+    editor:
+      preview: true
+    files:
+      - name: "hours"
+        label: "Store Hours"
+        file: "content/hours.json"
+        fields:
+          - { label: "Section Intro Note", name: "sectionNote", widget: "text" }
+          - { label: "Batch Capacity Note", name: "batchCapacityNote", widget: "text" }
+          - label: "Weekly Schedule"
+            name: "days"
+            widget: "list"
+            summary: "{{fields.day}} — {{fields.hours}}"
+            fields:
+              - label: "Day"
+                name: "day"
+                widget: "select"
+                options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+              - { label: "Hours (e.g. 4:30 PM – 9:30 PM, or Closed)", name: "hours", widget: "string" }
+              - { label: "Status Note", name: "statusNote", widget: "string", required: false }
+              - { label: "Closed Today?", name: "isClosed", widget: "boolean", default: false }
+
+  # -------------------------------------------------------------------
+  # 4) BLOG / BAKER'S JOURNAL — folder collection, one Markdown file per
+  #    post, matching /content/blog/*.md.
+  # -------------------------------------------------------------------
+  - name: "blog"
+    label: "Blog Posts"
+    description: "Essays shown in \"The Baker's Journal\" section."
+    folder: "content/blog"
+    create: true
+    delete: true
+    slug: "{{slug}}"
+    summary: "{{title}} — {{publishedDate}}"
+    editor:
+      preview: true
+    fields:
+      - { label: "Title", name: "title", widget: "string", pattern: ['^[^<>]{1,120}$', "Must be 120 characters or fewer and cannot contain < or > characters."] }
+      - { label: "Subtitle", name: "subtitle", widget: "string", pattern: ['^[^<>]{1,200}$', "Must be 200 characters or fewer and cannot contain < or > characters."] }
+      - { label: "Author Name", name: "author", widget: "string" }
+      - { label: "Author Role", name: "authorRole", widget: "string" }
+      - { label: "Read Time (e.g. \"4 min read\")", name: "readTime", widget: "string" }
+      - { label: "Published Date", name: "publishedDate", widget: "datetime", format: "YYYY-MM-DD", date_format: "YYYY-MM-DD", time_format: false, picker_utc: true }
+      - label: "Illustration"
+        name: "artType"
+        widget: "select"
+        options:
+          - { label: "Dough Handling Illustration", value: "dough" }
+          - { label: "Wood Oven Illustration", value: "oven" }
+      - { label: "Excerpt (card preview text)", name: "excerpt", widget: "text", pattern: ['^((?!<script).)*$', "For security reasons, <script> tags are not allowed."] }
+      - label: "Key Takeaways"
+        name: "keyTakeaways"
+        widget: "list"
+        field: { label: "Takeaway", name: "takeaway", widget: "string" }
+      - label: "Full Essay Body (Markdown)"
+        name: "body"
+        widget: "markdown"
+        hint: >-
+          Use ## for section headings and > for pull-quotes. Raw HTML and
+          script tags are stripped automatically for security, so please
+          use Markdown formatting instead of pasted HTML.
+        buttons: [bold, italic, link, heading-two, heading-three, quote, bulleted-list, numbered-list]
+        editor_components: []

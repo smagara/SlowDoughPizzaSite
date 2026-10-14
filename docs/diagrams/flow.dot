@@ -1,0 +1,60 @@
+digraph SlowDoughCMSFlow {
+  rankdir=TB;
+  bgcolor="#faf8f5";
+  fontname="Helvetica";
+  node [fontname="Helvetica", fontsize=12, style="filled,rounded", shape=box, penwidth=1.2];
+  edge [fontname="Helvetica", fontsize=10, color="#8a7a6c", fontcolor="#5c5247"];
+
+  labelloc="t";
+  label="Slow Dough — Decap CMS Content Publishing Flow";
+  fontsize=20;
+  fontcolor="#24211e";
+
+  subgraph cluster_local {
+    label="Local Dev Mode (no GitHub auth)";
+    fontsize=13;
+    color="#ded2c3";
+    style="rounded";
+    bgcolor="#f5ede3";
+
+    owner_local [label="Pizza Shop Owner\n(developer / tester)", fillcolor="#f0e7dc", color="#ded2c3"];
+    admin_local [label="/admin (Decap CMS)\nlocal_backend: true", fillcolor="#faf7f2", color="#c85a32"];
+    proxy [label="decap-server\nlocal proxy (localhost:8081)", fillcolor="#faf7f2", color="#c85a32"];
+    files_local [label="/content/*.json, *.md\n(written directly to disk)", fillcolor="#fffdfa", color="#ded2c3", shape=note];
+
+    owner_local -> admin_local [label="edit Menu / Blog /\nAnnouncement"];
+    admin_local -> proxy [label="save / publish"];
+    proxy -> files_local [label="writes file"];
+    files_local -> admin_local [label="Vite hot-reloads\npreview", style=dashed];
+  }
+
+  subgraph cluster_prod {
+    label="Production Editorial Workflow (GitHub-backed)";
+    fontsize=13;
+    color="#ded2c3";
+    style="rounded";
+    bgcolor="#f5ede3";
+
+    owner [label="Pizza Shop Owner\n(authorized GitHub collaborator)", fillcolor="#f0e7dc", color="#ded2c3"];
+    admin [label="/admin (Decap CMS)\nbackend: github", fillcolor="#faf7f2", color="#c85a32"];
+    oauth [label="OAuth Provider\n(/oauth-provider on Azure Functions:\nslowoauthfn-….azurewebsites.net)", fillcolor="#faf7f2", color="#c85a32"];
+    ghauth [label="GitHub OAuth\n+ collaborator check", fillcolor="#eef0f4", color="#334455", fontcolor="#24211e"];
+    branch [label="Feature branch created\ncms/<collection>/<slug>", fillcolor="#fffdfa", color="#ded2c3", shape=note];
+    pr [label="Pull Request opened\ninto main", fillcolor="#fffdfa", color="#ded2c3", shape=note];
+    review [label="Human review\n(diff + live preview)", fillcolor="#f7e6df", color="#8c3d1e"];
+    approve [label="Approve & Merge", fillcolor="#e4ede1", color="#335928"];
+    action [label="GitHub Action:\nBuild & Deploy\n(.github/workflows/deploy.yml)", fillcolor="#24211e", fontcolor="#faf8f5", color="#24211e"];
+    live [label="Live site updated\n(GitHub Pages:\nsmagara.github.io/SlowDoughPizzaSite)", fillcolor="#c85a32", fontcolor="#ffffff", color="#c85a32"];
+
+    owner -> admin [label="edit content, click\n\"Publish\""];
+    admin -> oauth [label="1. sign in"];
+    oauth -> ghauth [label="2. OAuth code\nexchange"];
+    ghauth -> admin [label="3. access token\n(if collaborator)"];
+    admin -> branch [label="4. commit change"];
+    branch -> pr [label="5. open PR"];
+    pr -> review [label="6."];
+    review -> approve [label="7."];
+    approve -> action [label="8. merge to main"];
+    action -> live [label="9. npm run build\n+ deploy-pages"];
+  }
+}

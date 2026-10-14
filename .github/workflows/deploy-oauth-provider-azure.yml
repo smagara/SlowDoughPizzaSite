@@ -1,0 +1,147 @@
+name: Deploy OAuth Provider (Azure Functions)
+
+# Deploys the Decap CMS GitHub-OAuth hand-off service in /oauth-provider to
+# the Azure Function App named in site.config.json
+# (oauthProvider.azure.functionAppName -> "slowoauthfn"), which is served at
+# the URL in site.config.json (oauthProvider.url ->
+# https://slowoauthfn-b3hzcgbnfch8bhbz.eastus2-01.azurewebsites.net).
+#
+# Full setup instructions: docs/INTEGRATION-GUIDE.md (section "Azure").
+#
+# Two authentication methods are supported; configure ONE of them as
+# repository secrets (Settings -> Secrets and variables -> Actions):
+#
+#   A) Publish profile (simplest):
+#        AZURE_FUNCTIONAPP_PUBLISH_PROFILE   - contents of the .PublishSettings
+#                                              file downloaded from the Function
+#                                              App's "Get publish profile" button
+#   B) OpenID Connect / Entra ID (no long-lived secret, recommended long-term):
+#        AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#
+# The GitHub OAuth App's client id/secret are NOT deployed from here; they are
+# configured once as Application Settings on the Function App (see guide).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'oauth-provider/**'
+      - 'site.config.json'
+      - '.github/workflows/deploy-oauth-provider-azure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # needed only for method B (OIDC login)
+
+concurrency:
+  group: oauth-provider-azure
+  cancel-in-progress: false
+
+env:
+  PACKAGE_PATH: oauth-provider
+  NODE_VERSION: '20.x'
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install (with dev deps) and run tests
+        working-directory: ${{ env.PACKAGE_PATH }}
+        run: |
+          npm ci
+          npm test
+
+  deploy:
+    name: Deploy to Azure Functions
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: azure-oauth-provider
+      url: ${{ steps.cfg.outputs.oauth_url }}
+    env:
+      # Exposed as env so the `if:` conditions below can test whether the
+      # publish-profile secret has been configured.
+      PUBLISH_PROFILE: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read deployment targets from site.config.json
+        id: cfg
+        run: |
+          APP_NAME=$(jq -r '.oauthProvider.azure.functionAppName' site.config.json)
+          OAUTH_URL=$(jq -r '.oauthProvider.url' site.config.json | sed 's:/*$::')
+          test -n "$APP_NAME" && test "$APP_NAME" != "null" || { echo "::error::oauthProvider.azure.functionAppName missing in site.config.json"; exit 1; }
+          echo "app_name=$APP_NAME"   >> "$GITHUB_OUTPUT"
+          echo "oauth_url=$OAUTH_URL" >> "$GITHUB_OUTPUT"
+          echo "Deploying to Function App '$APP_NAME' ($OAUTH_URL)"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install production dependencies
+        working-directory: ${{ env.PACKAGE_PATH }}
+        run: npm ci --omit=dev
+
+      # ---- Method A: publish profile ------------------------------------
+      - name: Deploy (publish profile)
+        if: ${{ env.PUBLISH_PROFILE != '' }}
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ steps.cfg.outputs.app_name }}
+          package: ${{ env.PACKAGE_PATH }}
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+          respect-funcignore: true
+          scm-do-build-during-deployment: false
+          enable-oryx-build: false
+
+      # ---- Method B: OIDC (federated credential) ------------------------
+      - name: Azure login (OIDC)
+        if: ${{ env.PUBLISH_PROFILE == '' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy (OIDC)
+        if: ${{ env.PUBLISH_PROFILE == '' }}
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ steps.cfg.outputs.app_name }}
+          package: ${{ env.PACKAGE_PATH }}
+          respect-funcignore: true
+          scm-do-build-during-deployment: false
+          enable-oryx-build: false
+
+      # ---- Smoke test ----------------------------------------------------
+      - name: Smoke test /healthz and /auth
+        run: |
+          BASE="${{ steps.cfg.outputs.oauth_url }}"
+          echo "Waiting for $BASE/healthz ..."
+          for i in $(seq 1 20); do
+            if curl -fsS --max-time 15 "$BASE/healthz" | grep -q '^ok$'; then
+              echo "healthz OK"; break
+            fi
+            if [ "$i" = "20" ]; then echo "::error::healthz did not return 'ok'"; exit 1; fi
+            sleep 10
+          done
+          # /auth must redirect (302) to github.com. A 500 here means the
+          # OAUTH_GITHUB_CLIENT_ID / _SECRET app settings are missing.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$BASE/auth")
+          LOC=$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 15 "$BASE/auth")
+          echo "/auth -> HTTP $CODE -> $LOC"
+          case "$CODE" in
+            301|302|303|307|308) echo "$LOC" | grep -q '^https://github.com/login/oauth/authorize' || { echo "::error::/auth did not redirect to GitHub"; exit 1; } ;;
+            500) echo "::error::/auth returned 500 - set OAUTH_GITHUB_CLIENT_ID and OAUTH_GITHUB_CLIENT_SECRET in the Function App's Application settings"; exit 1 ;;
+            *)   echo "::error::Unexpected status $CODE from /auth"; exit 1 ;;
+          esac
+          echo "OAuth provider is live at $BASE"

@@ -1,0 +1,75 @@
+name: Build & Deploy (main)
+
+# This workflow is the second half of the Decap CMS editorial workflow:
+# an owner edits content at /admin -> Decap opens a feature branch +
+# Pull Request -> a human reviews/approves -> the PR is merged to
+# `main` -> THIS workflow runs automatically, rebuilds the static site
+# with the freshly merged content, and deploys it to GitHub Pages at the
+# URL configured in site.config.json (site.url / site.basePath).
+#
+# One-time setup: in the repo, Settings -> Pages -> "Build and deployment"
+# -> Source = "GitHub Actions". See docs/INTEGRATION-GUIDE.md.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'oauth-provider/**'          # deployed separately to Azure
+      - 'docs/**'
+      - '.github/workflows/deploy-oauth-provider-azure.yml'
+  # Allows manually re-running a deploy from the Actions tab without a
+  # new commit (e.g. after rotating a secret).
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate site.config.json (repo / Pages URL / OAuth host)
+        run: npm run validate:config
+
+      - name: Validate content files
+        run: npm run validate:content
+
+      - name: Type check
+        run: npm run lint
+
+      - name: Build (base path + /admin/config.yml come from site.config.json)
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,19 @@
+{
+  "name": "slow-dough-decap-oauth-provider",
+  "private": true,
+  "version": "1.1.0",
+  "description": "Minimal GitHub OAuth handshake service for Decap CMS (production auth for /admin). Deployed to Azure Functions; Express and Vercel variants included.",
+  "main": "azure/functions/index.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:azure": "func start",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.7.0",
+    "express": "^4.19.2"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$comment": "SINGLE SOURCE OF TRUTH for every environment-specific URL/name. Edit this file (and only this file) when the GitHub repo, the GitHub Pages URL, or the Azure OAuth host changes. It is read by vite.config.ts (site base path + generated /admin/config.yml), by scripts/validate-content.mjs, and by the GitHub Actions workflows (via jq).",
+  "github": {
+    "repo": "smagara/SlowDoughPizzaSite",
+    "branch": "main"
+  },
+  "site": {
+    "url": "https://smagara.github.io/SlowDoughPizzaSite",
+    "basePath": "/SlowDoughPizzaSite/"
+  },
+  "oauthProvider": {
+    "url": "https://slowoauthfn-b3hzcgbnfch8bhbz.eastus2-01.azurewebsites.net",
+    "azure": {
+      "functionAppName": "slowoauthfn",
+      "region": "eastus2"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+name: PR Build Check
+
+# Runs for every Pull Request, including the branches Decap CMS opens
+# automatically for content edits (cms/<collection>/<slug>). Gives
+# reviewers a green/red signal that the edited JSON/Markdown content is
+# well-formed and the site still builds before they approve & merge.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate site.config.json
+        run: npm run validate:config
+
+      - name: Validate content JSON/YAML is well-formed
+        run: npm run validate:content
+
+      - name: Type check
+        run: npm run lint
+
+      - name: Build (fails the check if content breaks the site)
+        run: npm run build

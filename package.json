@@ -1,0 +1,39 @@
+{
+  "name": "react-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port=3000 --host=0.0.0.0",
+    "cms:proxy": "decap-server",
+    "dev:cms": "concurrently -k -n VITE,CMS-PROXY -c blue,yellow \"npm:dev\" \"npm:cms:proxy\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "rm -rf dist server.js",
+    "lint": "tsc --noEmit",
+    "validate:content": "node ./scripts/validate-content.mjs",
+    "validate:config": "node ./scripts/validate-site-config.mjs"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "dompurify": "^3.4.16",
+    "js-yaml": "^5.4.2",
+    "lucide-react": "^0.546.0",
+    "marked": "^18.0.14",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "vite": "^8.3.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "concurrently": "^10.0.5",
+    "decap-cms-app": "^3.16.3",
+    "decap-server": "^3.11.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2"
+  }
+}

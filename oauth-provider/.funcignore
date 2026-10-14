@@ -1,0 +1,11 @@
+# Files excluded from the Azure Functions deployment package
+# (Azure/functions-action honours this with respect-funcignore: true).
+.git*
+.env*
+.vscode
+test/
+api/
+vercel.json
+Dockerfile
+README.md
+local.settings.json
