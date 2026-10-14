@@ -104,23 +104,23 @@ jobs:
           enable-oryx-build: false
 
       # ---- Method B: OIDC (federated credential) ------------------------
-      - name: Azure login (OIDC)
-        if: ${{ env.PUBLISH_PROFILE == '' }}
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # - name: Azure login (OIDC)
+      #   if: ${{ env.PUBLISH_PROFILE == '' }}
+      #   uses: azure/login@v2
+      #   with:
+      #     client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      #     tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+      #     subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy (OIDC)
-        if: ${{ env.PUBLISH_PROFILE == '' }}
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ steps.cfg.outputs.app_name }}
-          package: ${{ env.PACKAGE_PATH }}
-          respect-funcignore: true
-          scm-do-build-during-deployment: false
-          enable-oryx-build: false
+      # - name: Deploy (OIDC)
+      #   if: ${{ env.PUBLISH_PROFILE == '' }}
+      #   uses: Azure/functions-action@v1
+      #   with:
+      #     app-name: ${{ steps.cfg.outputs.app_name }}
+      #     package: ${{ env.PACKAGE_PATH }}
+      #     respect-funcignore: true
+      #     scm-do-build-during-deployment: false
+      #     enable-oryx-build: false
 
       # ---- Smoke test ----------------------------------------------------
       - name: Smoke test /healthz and /auth
