@@ -137,25 +137,130 @@ az functionapp config appsettings set \
    - Name: `AZURE_FUNCTIONAPP_PUBLISH_PROFILE`
    - Value: paste the *entire contents* of the `.PublishSettings` file.
 
-**Method B — OpenID Connect (no stored secret; recommended long-term)**
+**Method B — OpenID Connect (no stored secret; recommended, and REQUIRED on
+Flex Consumption)**
 
 1. Create an Entra ID app registration (or use an existing one):
    `az ad app create --display-name slowdough-github-deploy`
    and a service principal for it: `az ad sp create --id <appId>`.
-2. Add a **federated credential** to that app registration:
-   - Issuer: `https://token.actions.githubusercontent.com`
-   - Subject: `repo:smagara/SlowDoughPizzaSite:ref:refs/heads/main`
-     *(the workflow also uses an environment named `azure-oauth-provider`; if
-     you enable environment protection rules, add a second credential with
-     subject `repo:smagara/SlowDoughPizzaSite:environment:azure-oauth-provider`)*
-   - Audience: `api://AzureADTokenExchange`
-3. Grant it rights on the Function App (least privilege):
-   `az role assignment create --assignee <appId> --role "Website Contributor" --scope /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Web/sites/slowoauthfn`
-4. Add three GitHub repository secrets: `AZURE_CLIENT_ID` (the app id),
-   `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
+2. Add a **federated credential** to that app registration. Entra matches the
+   **subject** string *character for character*, and GitHub now embeds the
+   immutable owner and repository IDs in it, so the value is:
 
-The workflow automatically uses Method A if `AZURE_FUNCTIONAPP_PUBLISH_PROFILE`
-is present, otherwise Method B.
+   ```
+   repo:smagara@17964984/SlowDoughPizzaSite@1413782001:ref:refs/heads/main
+   ```
+
+   (`17964984` = the `smagara` account ID, `1413782001` = the repository ID;
+   both are printed by `gh api repos/smagara/SlowDoughPizzaSite --jq '.owner.id, .id'`.
+   The workflow's **"Show OIDC subject claim"** step also prints the exact
+   value and puts a copy-paste `az` command in the run's *Summary* tab.)
+
+   > In the portal's **"GitHub Actions deploying Azure resources"** scenario,
+   > fill in **Organization ID = `17964984`** and **Repository ID =
+   > `1413782001`** (fields next to the names; the page also shows a banner
+   > recommending this "new subject identifier format with immutable IDs").
+   > The generated *Subject identifier* must read exactly
+   > `repo:smagara@17964984/SlowDoughPizzaSite@1413782001:ref:refs/heads/main`.
+   > If the IDs are left blank the old ID-less subject is generated, which
+   > **does not match** and fails `azure/login` with
+   > `AADSTS700213: No matching federated identity record found`. CLI
+   > equivalent:
+
+   ```bash
+   az ad app federated-credential create --id <Application (client) ID> --parameters '{
+     "name": "github-slowdough-main",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "subject": "repo:smagara@17964984/SlowDoughPizzaSite@1413782001:ref:refs/heads/main",
+     "audiences": ["api://AzureADTokenExchange"]
+   }'
+   ```
+
+   (The **Other issuer** scenario also works: Issuer
+   `https://token.actions.githubusercontent.com`, Subject identifier = the
+   string above, Audience `api://AzureADTokenExchange`.) It does no harm to
+   also keep a credential with the ID-less subject.
+
+   The deploy job intentionally has no `environment:` — if one is ever added,
+   the token's subject becomes `repo:…:environment:<name>` and a credential
+   with that subject is required. Manual `workflow_dispatch` runs from `main`
+   present the same `ref:refs/heads/main` subject, so one credential covers
+   both. If you'd rather not depend on the exact format, Entra's *flexible*
+   federated credentials accept an expression such as
+   `claims['sub'] matches 'repo:smagara*/SlowDoughPizzaSite*:ref:refs/heads/main'`.
+3. **Grant the identity a role on the Function App — this step is what makes
+   the subscription visible to `az login`.** A federated credential only
+   proves *who* the workflow is; without a role assignment the sign-in
+   succeeds and then fails with **`No subscriptions found for <client-id>`**.
+
+   > **Which identity?** There are two different principals in play, and the
+   > role must go to the first one:
+   >
+   > | Principal | Where you see it | Used for |
+   > |-----------|------------------|----------|
+   > | **Service principal of the app registration** (the one holding the federated credential; its *Application (client) ID* is `AZURE_CLIENT_ID`) | Entra ID → *Enterprise applications* → same display name as the app registration | **GitHub Actions signs in as this.** It needs **Contributor** on the Function App / resource group. |
+   > | Managed identity of the Function App (`slowoauthfn`) | Function App → *Identity* → *Azure role assignments* | Used by the *running* function (e.g. `Storage Blob Data Contributor` on the Flex deployment container — leave that in place). Roles here do **not** apply to GitHub Actions. |
+   >
+   > In the portal's *Add role assignment → Members* picker, search for the
+   > **app registration's display name**, not for `slowoauthfn`.
+   >
+   > **Which ID goes where?** The Enterprise application's *Overview* shows
+   > two IDs:
+   >
+   > | ID on the Enterprise application page | Use it for |
+   > |---|---|
+   > | **Application ID** (same as the app registration's *Application (client) ID*) | the GitHub secret **`AZURE_CLIENT_ID`** |
+   > | **Object ID** (the service principal's object id) | only for role assignment by object id: `az role assignment create --assignee-object-id <Object ID> --assignee-principal-type ServicePrincipal …` |
+   >
+   > Do **not** put the Object ID in `AZURE_CLIENT_ID`. *"Assign users and
+   > groups"* on the Enterprise application page is single-sign-on user
+   > assignment and has no effect on Azure RBAC.
+
+   Step-by-step in the portal: *Subscriptions → your subscription → Resource
+   groups → `CMS` → Access control (IAM) → **+ Add → Add role assignment** →
+   tab **Privileged administrator roles** → **Contributor** → Next → Assign
+   access to: **User, group, or service principal** → **+ Select members** →
+   type `SlowDoughDecapCMS` → select it → Review + assign.* Confirm with *IAM
+   → Check access → search `SlowDoughDecapCMS`* (it should list Contributor),
+   or with `az role assignment list --assignee <Application ID> --all -o table`.
+   New assignments can take 2–5 minutes to become effective.
+   `Website Contributor` on the app is enough for Consumption/Premium; on
+   **Flex Consumption** the action also needs to read the app's deployment
+   configuration, so grant **Contributor** on the Function App (or its
+   resource group):
+
+   ```bash
+   az ad sp create --id <Application (client) ID>      # only if Entra -> Enterprise applications has no entry for the app yet
+   az role assignment create --assignee <Application (client) ID> --role Contributor \
+     --scope /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Web/sites/slowoauthfn
+   az role assignment list --assignee <Application (client) ID> --all -o table   # verify: one Contributor row
+   ```
+
+   Portal: *Function App → Access control (IAM) → Add → Add role assignment →
+   Privileged administrator roles → **Contributor** → Members: **User, group,
+   or service principal** → Select members → search the app registration's
+   display name → Review + assign.* Role assignments can take a couple of
+   minutes to propagate.
+
+   Also make sure the subscription that holds `slowoauthfn` belongs to the
+   **same directory (tenant)** as the app registration: *Portal → Subscriptions
+   → "Directory" column* must match `AZURE_TENANT_ID`. A subscription attached
+   to a different directory is invisible to this identity no matter what role
+   you assign.
+4. Add three GitHub repository secrets:
+
+   | Secret                  | Value                                                                 |
+   |-------------------------|-----------------------------------------------------------------------|
+   | `AZURE_CLIENT_ID`       | the app registration's **Application (client) ID** (not the object ID) |
+   | `AZURE_TENANT_ID`       | Directory (tenant) ID                                                 |
+   | `AZURE_SUBSCRIPTION_ID` | the subscription that contains `slowoauthfn`                          |
+
+The workflow's **Select deployment method** step uses Method A if
+`AZURE_FUNCTIONAPP_PUBLISH_PROFILE` is present, Method B if the three OIDC
+secrets are present, and **fails immediately with a clear message if neither
+is configured**. The OIDC path then runs a pre-flight that verifies the
+identity can see the Function App, that its hostname matches
+`site.config.json`, and that the OAuth app settings exist — before deploying.
 
 ---
 
@@ -171,9 +276,14 @@ The workflow:
 
 1. runs the unit tests in `oauth-provider/test/`,
 2. reads the Function App name + URL from `site.config.json`,
-3. installs production dependencies and deploys `oauth-provider/` with
-   `Azure/functions-action@v1`,
-4. **smoke-tests** the live service: `GET /healthz` must return `ok`, and
+3. selects the authentication method (fails if no secrets are configured) and
+   **pre-flight checks** it: with a publish profile, against Kudu (see
+   [8a](#8a-kudu-401-with-the-publish-profile)); with OIDC, that the identity
+   can see the app, the hostname matches `site.config.json`, and
+   `OAUTH_GITHUB_CLIENT_ID` / `OAUTH_GITHUB_CLIENT_SECRET` exist,
+4. installs production dependencies and deploys `oauth-provider/` with
+   `Azure/functions-action@v1`, then **verifies a deploy step actually ran**,
+5. **smoke-tests** the live service: `GET /healthz` must return `ok`, and
    `GET /auth` must answer with a redirect to `https://github.com/login/oauth/authorize…`.
    A `500` from `/auth` means step 3a was skipped (missing client id/secret).
 
@@ -269,10 +379,123 @@ npm run build && npm run preview    # -> http://localhost:4173/SlowDoughPizzaSit
 | GitHub shows *"The redirect_uri is not associated with this application"* | OAuth App callback URL ≠ `oauthProvider.url` + `/callback`. Fix in GitHub (step 2), no redeploy needed. |
 | Popup closes but Decap says the user isn't authorized / *"Not Found"*   | The GitHub account is not a collaborator with write access on `smagara/SlowDoughPizzaSite`.              |
 | `/admin/` loads the pizza site instead of the editor                    | You are on `vite dev` and typed `/admin` without the slash; it redirects now. On Pages, verify `site.basePath`. |
-| Deploy workflow fails at *"Deploy (publish profile)"* with 401/403        | The publish profile is stale or basic-auth publishing is disabled (see 3b-A). Download a fresh profile.   |
-| Deploy workflow's smoke test times out on `/healthz`                    | Function App stopped, or the default hostname differs from `oauthProvider.url`. Check Overview → URL.     |
+| Deploy workflow fails with *"Failed to fetch Kudu App Settings. Unauthorized (CODE: 401)"* | See [8a](#8a-kudu-401-with-the-publish-profile) — basic-auth publishing is off (or the profile is stale). |
+| Deploy workflow fails at Kudu with **403**                                | The SCM site has access restrictions blocking GitHub runners (Networking → Access restriction → *Advanced tool site*). |
+| Smoke test fails with `/healthz` → **404** (×20)                         | Nothing is deployed or functions failed to index — see [8b](#8b-healthz-returns-404-after-the-workflow-runs).  |
+| Smoke test cannot connect to `/healthz` (HTTP 000)                       | Function App stopped, or the default hostname differs from `oauthProvider.url`. Check Overview → URL.     |
+| `azure/login` fails with **AADSTS70021 / AADSTS700213** *No matching federated identity record found for presented assertion subject '…'* | The federated credential subject must equal the subject quoted in the error, character for character (GitHub includes `@<id>` suffixes; the portal wizard omits them). Copy it from the error or from the "Show OIDC subject claim" step / run Summary and create the credential via CLI or the "Other issuer" scenario — see 3b-B. |
+| `azure/login` fails with **AADSTS700016** *application not found*        | `AZURE_CLIENT_ID` is not the app registration's Application (client) ID, or wrong `AZURE_TENANT_ID`.     |
+| `azure/login` / OIDC pre-flight: **No subscriptions found for `<client-id>`** / **The subscription of '`<id>`' doesn't exist in cloud 'AzureCloud'** / *has NO role assignment in any subscription* | The sign-in worked; the **app registration's service principal** has no role assignment visible in that subscription — most often because the role was given to the Function App's *managed identity* instead (see the "Which identity?" box in 3b-B step 3), or the subscription is in another tenant. The subscription ID itself is not the problem, and repository secrets are fine — environment secrets are *not* required. Verify with `az role assignment list --assignee <client-id> --all -o table`. |
+| OIDC pre-flight: *AZURE_SUBSCRIPTION_ID … is not among the subscriptions this identity can access* | The step lists the visible subscriptions. If the only entry is **`N/A(tenant level account)`**, the identity still has **no role assignment anywhere** (same fix as the row above); otherwise the secret holds a different subscription than the one where the role was assigned. |
+| OIDC pre-flight: *cannot see a Function App named 'slowoauthfn'*         | Role assigned at the wrong scope (another RG/app), or the app name in `site.config.json` is wrong.        |
 | Site assets 404 on GitHub Pages                                         | `site.basePath` must equal `/<repo-name>/` for project pages (or `/` for a custom domain).                |
 | *"Failed to load config.yml"* in the admin                              | The build didn't emit `admin/config.yml`; run `npm run build` locally and check `dist/admin/config.yml`.  |
 
 Logs: Function App → **Monitor → Logs / Log stream** for the OAuth service;
 GitHub → **Actions** tab for both deploy workflows.
+
+### 8a. Kudu 401 with the publish profile
+
+Symptom in the *Deploy OAuth Provider (Azure Functions)* run:
+
+```
+Run Azure/functions-action@v1
+Successfully parsed SCM credential from publish-profile format.
+Error: ... Get Function App Settings : Failed to acquire app settings from https://<scmsite>/api/settings with publish-profile
+Error:   Failed to fetch Kudu App Settings.
+Unauthorized (CODE: 401)
+```
+
+The action could parse the profile but Kudu (the Function App's deployment
+endpoint) rejected its username/password. In order of likelihood:
+
+1. **SCM Basic Auth Publishing Credentials is OFF** on the Function App. Azure
+   turns this off by default for new apps; the portal still lets you download a
+   profile, but Kudu refuses it. (≈90 % of cases.)
+2. **The profile is stale** — publishing credentials were reset after download
+   (e.g. basic auth was toggled, or someone clicked *Reset publish profile*).
+3. **The secret isn't the whole XML file** (only the password pasted, text
+   wrapped/edited, or the profile of another app or a slot).
+4. **Flex Consumption plan** — basic auth is off by default and publish-profile
+   deploys are only partially supported; use OIDC.
+
+**Confirm in 2 minutes.** The workflow now has a *Pre-flight* step that
+performs this check automatically and prints the fix; to do it by hand, take
+`publishUrl`, `userName`, `userPWD` from the `publishMethod="MSDeploy"` entry
+of the `.PublishSettings` file and run:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -u '<userName>:<userPWD>' 'https://<publishUrl>/api/settings'
+#  401 -> basic auth off / stale profile (causes 1-2)
+#  200 -> profile is fine; the GitHub secret is wrong or incomplete (cause 3)
+```
+
+or ask Azure for the policy directly:
+
+```bash
+az resource show -g <rg> --resource-type Microsoft.Web/sites/basicPublishingCredentialsPolicies \
+  --name scm --parent sites/slowoauthfn --query properties.allow      # false => cause 1
+az functionapp show -g <rg> -n slowoauthfn --query "{plan:sku, kind:kind}"  # "FlexConsumption" => prefer OIDC
+```
+
+You can also run the same pre-flight locally (the file is never committed):
+
+```bash
+PUBLISH_PROFILE="$(cat slowoauthfn.PublishSettings)" EXPECTED_APP_NAME=slowoauthfn \
+  python3 .github/scripts/check-publish-profile.py
+```
+
+**Fix — Option 1 (keep the publish profile):**
+
+1. Portal → Function App → **Settings → Configuration → General settings →
+   SCM Basic Auth Publishing Credentials = On** → **Save**.
+   CLI: `az resource update -g <rg> --resource-type Microsoft.Web/sites/basicPublishingCredentialsPolicies --name scm --parent sites/slowoauthfn --set properties.allow=true`
+2. **Overview → Get publish profile** — download a *fresh* file (the old one may
+   have been invalidated).
+3. Replace the `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` secret with the **entire**
+   file contents and re-run the workflow.
+
+**Fix — Option 2 (switch to OIDC; recommended, and required on Flex Consumption):**
+delete the `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` secret and add
+`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` as described in
+[3b — Method B](#3b-give-github-actions-permission-to-deploy--pick-one-method).
+The workflow switches to `azure/login` automatically when the publish-profile
+secret is absent.
+
+### 8b. `/healthz` returns 404 after the workflow runs
+
+Symptom: every step is green until the smoke test, which logs
+`curl: (22) The requested URL returned error: 404` twenty times.
+
+A 404 from `<host>/healthz` means the Function App itself is up (Azure
+answered) but **no function named `healthz` exists in it**. Check, in order:
+
+1. **Did a deploy step actually run?** Open the run → *Deploy to Azure
+   Functions* job. You should see **"Azure login (OIDC)"** and **"Deploy
+   (OIDC)"** (or the publish-profile pair) with a green tick, *not* grey
+   "skipped". In the raw log, the "Download action repository" lines at the
+   top must include `azure/login@v2`; if they don't, the OIDC steps are
+   missing from the workflow file on `main` — restore
+   `.github/workflows/deploy-oauth-provider-azure.yml` from this repository.
+   The current workflow fails early in this situation ("Neither deploy step
+   ran successfully").
+2. **Did the deployment produce functions?** Portal → Function App →
+   **Overview → Functions** must list `auth`, `callback`, `healthz`. If the
+   list is empty, open **Log stream** / **Monitor → Logs** and look for
+   `Worker failed to index functions` or a Node stack trace — typically a
+   missing dependency (`node_modules` not shipped) or a syntax error in
+   `oauth-provider/azure/functions/index.js`. The package must contain
+   `host.json`, `package.json` (with `"main": "azure/functions/index.js"`),
+   `azure/`, `lib/` and `node_modules/`.
+3. **Flex Consumption specifics:**
+   - `WEBSITE_RUN_FROM_PACKAGE` must **not** be set (the OIDC pre-flight
+     checks this). Flex runs from the deployment storage container instead.
+   - The deploying identity needs **Contributor** on the app (not just
+     Website Contributor) — check *Deployment Center → Logs* for 403s.
+   - The runtime stack must be **Node.js 20**; `host.json` sets
+     `routePrefix: ""`, which is supported on Flex.
+4. **Manual deploy to isolate the problem** (requires Azure Functions Core
+   Tools + `az login`): from `oauth-provider/`, run
+   `npm ci --omit=dev && func azure functionapp publish slowoauthfn`. The
+   output lists the deployed functions and their invoke URLs; if this works
+   but the workflow doesn't, the issue is in the workflow's credentials.

@@ -221,18 +221,23 @@ jobs:
           APP_NAME: ${{ steps.cfg.outputs.app_name }}
         run: |
           set -e
-          VISIBLE=$(az account list --all --query "[].{id:id,name:name,tenant:tenantId}" -o json)
+          # `az login --allow-no-subscriptions` adds a placeholder entry named
+          # "N/A(tenant level account)" whose id is the tenant id; it is not a
+          # subscription, so filter it out before counting.
+          VISIBLE=$(az account list --all --query "[?name!='N/A(tenant level account)' && id!='$AZURE_TENANT_ID'].{id:id,name:name,tenant:tenantId,state:state}" -o json)
           COUNT=$(echo "$VISIBLE" | jq 'length')
           if [ "$COUNT" = "0" ]; then
             APP_DISPLAY=$(az ad app show --id "$AZURE_CLIENT_ID" --query displayName -o tsv 2>/dev/null || echo "<app registration with client id $AZURE_CLIENT_ID>")
+            SP_OBJECT_ID=$(az ad sp show --id "$AZURE_CLIENT_ID" --query id -o tsv 2>/dev/null || echo "<Object ID shown on Entra -> Enterprise applications -> $APP_DISPLAY -> Overview>")
             echo "::error::Signed in to tenant $AZURE_TENANT_ID as the service principal of app registration '$APP_DISPLAY' ($AZURE_CLIENT_ID), but that principal has NO role assignment in any subscription, so Azure shows it zero subscriptions. This is an Azure RBAC problem, not a GitHub secrets problem."
             echo "  IMPORTANT: the role must be assigned to THIS principal - the app registration's service principal (Entra -> Enterprise applications -> '$APP_DISPLAY')."
             echo "  It is NOT the Function App's own managed identity (Function App -> Identity); roles granted there do not apply to GitHub Actions."
-            echo "  Fix (CLI):"
-            echo "    az ad sp create --id $AZURE_CLIENT_ID   # only if 'Enterprise applications' has no entry for '$APP_DISPLAY' yet"
-            echo "    az role assignment create --assignee $AZURE_CLIENT_ID --role Contributor --scope /subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/<rg>   # or .../providers/Microsoft.Web/sites/$APP_NAME"
-            echo "    az role assignment list --assignee $AZURE_CLIENT_ID --all -o table   # must show the Contributor row"
-            echo "  Fix (portal): resource group or Function App -> Access control (IAM) -> Add role assignment -> Contributor -> Members: 'User, group, or service principal' -> search '$APP_DISPLAY' (NOT '$APP_NAME')."
+            echo "  Identity details: Application (client) ID = $AZURE_CLIENT_ID (this is what AZURE_CLIENT_ID must hold); service principal Object ID = $SP_OBJECT_ID (used only when assigning roles)."
+            echo "  Fix (CLI, run as a subscription Owner/User Access Administrator):"
+            echo "    az role assignment create --assignee-object-id $SP_OBJECT_ID --assignee-principal-type ServicePrincipal --role Contributor --scope /subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/<rg>   # or .../providers/Microsoft.Web/sites/$APP_NAME"
+            echo "    az role assignment list --assignee $AZURE_CLIENT_ID --all -o table   # must show the Contributor row (allow ~2-5 min to propagate)"
+            echo "  Fix (portal): Subscription -> Resource groups -> <rg> -> Access control (IAM) -> Add role assignment -> 'Privileged administrator roles' tab -> Contributor -> Members: 'User, group, or service principal' -> Select members -> search '$APP_DISPLAY' (NOT '$APP_NAME') -> Review + assign. Then IAM -> 'Check access' -> search '$APP_DISPLAY' to confirm."
+            echo "  Note: 'Assign users and groups' on the Enterprise application page is SSO user assignment and has nothing to do with Azure RBAC."
             echo "  Also confirm the subscription lives in tenant $AZURE_TENANT_ID (Portal -> Subscriptions -> Directory column); if it is in another directory, use THAT tenant's id in AZURE_TENANT_ID and register the app there."
             exit 1
           fi
