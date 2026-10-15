@@ -104,6 +104,7 @@ jobs:
           enable-oryx-build: false
 
       # ---- Method B: OIDC (federated credential) ------------------------
+      # ---- Comment out for now -----
       # - name: Azure login (OIDC)
       #   if: ${{ env.PUBLISH_PROFILE == '' }}
       #   uses: azure/login@v2
