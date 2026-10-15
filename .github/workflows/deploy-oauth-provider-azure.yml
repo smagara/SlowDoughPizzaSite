@@ -203,11 +203,12 @@ jobs:
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          # Let the login itself succeed even when the identity has no role
-          # assignments yet, so the pre-flight step below can explain the
-          # problem precisely (instead of azure/login's bare
-          # "No subscriptions found for <client-id>").
+          # subscription-id is deliberately NOT passed here: azure/login would
+          # immediately run `az account set` and fail with the misleading
+          # "The subscription of '<id>' doesn't exist in cloud 'AzureCloud'"
+          # whenever the identity cannot see it yet (i.e. no role assignment).
+          # The pre-flight step below selects the subscription itself and
+          # explains precisely what is wrong if it cannot.
           allow-no-subscriptions: true
 
       # Pre-flight for OIDC: confirm the identity can actually see the
@@ -223,10 +224,15 @@ jobs:
           VISIBLE=$(az account list --all --query "[].{id:id,name:name,tenant:tenantId}" -o json)
           COUNT=$(echo "$VISIBLE" | jq 'length')
           if [ "$COUNT" = "0" ]; then
-            echo "::error::The federated identity signed in to tenant $AZURE_TENANT_ID successfully but has NO access to any subscription (azure/login: 'No subscriptions found'). This is an Azure RBAC problem, not a GitHub secrets problem. The service principal for app registration $AZURE_CLIENT_ID needs a role assignment on the Function App (or its resource group). Fix:"
-            echo "    az ad sp create --id $AZURE_CLIENT_ID   # only if 'Enterprise applications' has no entry for this app yet"
-            echo "    az role assignment create --assignee $AZURE_CLIENT_ID --role Contributor --scope /subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/<rg>/providers/Microsoft.Web/sites/$APP_NAME"
-            echo "  Portal: Function App -> Access control (IAM) -> Add role assignment -> Contributor -> Members: 'User, group, or service principal' -> search the app registration's name."
+            APP_DISPLAY=$(az ad app show --id "$AZURE_CLIENT_ID" --query displayName -o tsv 2>/dev/null || echo "<app registration with client id $AZURE_CLIENT_ID>")
+            echo "::error::Signed in to tenant $AZURE_TENANT_ID as the service principal of app registration '$APP_DISPLAY' ($AZURE_CLIENT_ID), but that principal has NO role assignment in any subscription, so Azure shows it zero subscriptions. This is an Azure RBAC problem, not a GitHub secrets problem."
+            echo "  IMPORTANT: the role must be assigned to THIS principal - the app registration's service principal (Entra -> Enterprise applications -> '$APP_DISPLAY')."
+            echo "  It is NOT the Function App's own managed identity (Function App -> Identity); roles granted there do not apply to GitHub Actions."
+            echo "  Fix (CLI):"
+            echo "    az ad sp create --id $AZURE_CLIENT_ID   # only if 'Enterprise applications' has no entry for '$APP_DISPLAY' yet"
+            echo "    az role assignment create --assignee $AZURE_CLIENT_ID --role Contributor --scope /subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/<rg>   # or .../providers/Microsoft.Web/sites/$APP_NAME"
+            echo "    az role assignment list --assignee $AZURE_CLIENT_ID --all -o table   # must show the Contributor row"
+            echo "  Fix (portal): resource group or Function App -> Access control (IAM) -> Add role assignment -> Contributor -> Members: 'User, group, or service principal' -> search '$APP_DISPLAY' (NOT '$APP_NAME')."
             echo "  Also confirm the subscription lives in tenant $AZURE_TENANT_ID (Portal -> Subscriptions -> Directory column); if it is in another directory, use THAT tenant's id in AZURE_TENANT_ID and register the app there."
             exit 1
           fi
