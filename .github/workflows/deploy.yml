@@ -5,7 +5,7 @@ name: Build & Deploy (main)
 # Pull Request -> a human reviews/approves -> the PR is merged to
 # `main` -> THIS workflow runs automatically, rebuilds the static site
 # with the freshly merged content, and deploys it to GitHub Pages at the
-# URL configured in site.config.json (site.url / site.basePath).
+# URL configured in site.config.json (site.url / site.basePath)..
 #
 # One-time setup: in the repo, Settings -> Pages -> "Build and deployment"
 # -> Source = "GitHub Actions". See docs/INTEGRATION-GUIDE.md.
