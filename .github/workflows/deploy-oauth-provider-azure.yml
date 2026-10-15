@@ -19,8 +19,10 @@ name: Deploy OAuth Provider (Azure Functions)
 #   B) OpenID Connect / Entra ID (no long-lived secret; REQUIRED for Flex
 #      Consumption, recommended everywhere):
 #        AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
-#      Federated credential subject for this job (no job environment!):
-#        repo:smagara/SlowDoughPizzaSite:ref:refs/heads/main
+#      Federated credential subject for this job (no job environment!). GitHub
+#      now embeds immutable IDs in it; the "Show OIDC subject claim" step
+#      prints the exact value to configure, e.g.
+#        repo:smagara@17964984/SlowDoughPizzaSite@1413782001:ref:refs/heads/main
 #
 # The GitHub OAuth App's client id/secret are NOT deployed from here; they are
 # configured once as Application Settings on the Function App (see guide).
@@ -155,6 +157,46 @@ jobs:
 
       # ---- Method B: OIDC (federated credential) ------------------------
       # Required on Flex Consumption (no basic-auth publishing there).
+      #
+      # Print the exact subject claim GitHub is presenting so the Entra
+      # federated credential can be configured to match it character for
+      # character. NOTE: GitHub now embeds immutable IDs in the subject, e.g.
+      #   repo:smagara@17964984/SlowDoughPizzaSite@1413782001:ref:refs/heads/main
+      # The Entra portal's "GitHub Actions" wizard generates the OLD form
+      # without IDs, which will NOT match -> AADSTS700213. Use the
+      # "Other issuer" scenario (or the CLI) and paste the subject verbatim.
+      - name: Show OIDC subject claim (configure this in Entra)
+        if: ${{ steps.method.outputs.method == 'oidc' }}
+        run: |
+          set -e
+          RESP=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+                  "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=api://AzureADTokenExchange")
+          # Decode the JWT payload (claims only; the token itself is never printed).
+          CLAIMS=$(echo "$RESP" | jq -r .value | python3 -c '
+          import sys, json, base64
+          payload = sys.stdin.read().strip().split(".")[1]
+          payload += "=" * (-len(payload) % 4)
+          c = json.loads(base64.urlsafe_b64decode(payload))
+          keys = ["iss", "sub", "aud", "repository", "repository_id", "repository_owner_id", "job_workflow_ref"]
+          print(json.dumps({k: c.get(k) for k in keys}, indent=2))')
+          echo "$CLAIMS"
+          SUB=$(echo "$CLAIMS" | jq -r .sub)
+          echo "sub=$SUB" >> "$GITHUB_OUTPUT"
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOT
+          ### Entra federated credential must match
+          | Field | Value |
+          |---|---|
+          | Issuer | \`https://token.actions.githubusercontent.com\` |
+          | **Subject** | \`$SUB\` |
+          | Audience | \`api://AzureADTokenExchange\` |
+
+          \`\`\`bash
+          az ad app federated-credential create --id <Application (client) ID> --parameters '{"name":"github-main","issuer":"https://token.actions.githubusercontent.com","subject":"$SUB","audiences":["api://AzureADTokenExchange"]}'
+          \`\`\`
+          EOT
+          echo "::notice::If azure/login fails with AADSTS700213, create a federated credential with subject exactly: $SUB"
+        id: oidc_sub
+
       - name: Azure login (OIDC)
         if: ${{ steps.method.outputs.method == 'oidc' }}
         uses: azure/login@v2
@@ -162,16 +204,40 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          # Let the login itself succeed even when the identity has no role
+          # assignments yet, so the pre-flight step below can explain the
+          # problem precisely (instead of azure/login's bare
+          # "No subscriptions found for <client-id>").
+          allow-no-subscriptions: true
 
-      # Pre-flight for OIDC: confirm the identity can actually see the app
-      # (catches a wrong subscription / missing role assignment early),
-      # report the plan, and confirm the OAuth app settings exist.
+      # Pre-flight for OIDC: confirm the identity can actually see the
+      # subscription and the app (catches a missing role assignment, a wrong
+      # subscription id, or a subscription in another tenant early), report
+      # the plan, and confirm the OAuth app settings exist.
       - name: Pre-flight - verify access to the Function App
         if: ${{ steps.method.outputs.method == 'oidc' }}
         env:
           APP_NAME: ${{ steps.cfg.outputs.app_name }}
         run: |
           set -e
+          VISIBLE=$(az account list --all --query "[].{id:id,name:name,tenant:tenantId}" -o json)
+          COUNT=$(echo "$VISIBLE" | jq 'length')
+          if [ "$COUNT" = "0" ]; then
+            echo "::error::The federated identity signed in to tenant $AZURE_TENANT_ID successfully but has NO access to any subscription (azure/login: 'No subscriptions found'). This is an Azure RBAC problem, not a GitHub secrets problem. The service principal for app registration $AZURE_CLIENT_ID needs a role assignment on the Function App (or its resource group). Fix:"
+            echo "    az ad sp create --id $AZURE_CLIENT_ID   # only if 'Enterprise applications' has no entry for this app yet"
+            echo "    az role assignment create --assignee $AZURE_CLIENT_ID --role Contributor --scope /subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/<rg>/providers/Microsoft.Web/sites/$APP_NAME"
+            echo "  Portal: Function App -> Access control (IAM) -> Add role assignment -> Contributor -> Members: 'User, group, or service principal' -> search the app registration's name."
+            echo "  Also confirm the subscription lives in tenant $AZURE_TENANT_ID (Portal -> Subscriptions -> Directory column); if it is in another directory, use THAT tenant's id in AZURE_TENANT_ID and register the app there."
+            exit 1
+          fi
+          if ! echo "$VISIBLE" | jq -e --arg s "$AZURE_SUBSCRIPTION_ID" '.[] | select(.id==$s)' >/dev/null; then
+            echo "::error::AZURE_SUBSCRIPTION_ID ($AZURE_SUBSCRIPTION_ID) is not among the subscriptions this identity can access. Visible subscriptions:"
+            echo "$VISIBLE" | jq -r '.[] | "    \(.id)  \(.name)  (tenant \(.tenant))"'
+            echo "  Either fix the AZURE_SUBSCRIPTION_ID secret, or grant the service principal a role inside the intended subscription."
+            exit 1
+          fi
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+          echo "Subscription OK: $(az account show --query name -o tsv) ($AZURE_SUBSCRIPTION_ID)"
           ID=$(az functionapp list --query "[?name=='$APP_NAME'].id | [0]" -o tsv)
           if [ -z "$ID" ]; then
             echo "::error::The federated identity cannot see a Function App named '$APP_NAME' in subscription $AZURE_SUBSCRIPTION_ID. Check: (1) AZURE_SUBSCRIPTION_ID is the subscription that holds the app, (2) the app registration's service principal has the 'Website Contributor' (or Contributor) role on the app or its resource group."
