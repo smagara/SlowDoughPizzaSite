@@ -216,6 +216,7 @@ jobs:
       # subscription id, or a subscription in another tenant early), report
       # the plan, and confirm the OAuth app settings exist.
       - name: Pre-flight - verify access to the Function App
+        id: preflight
         if: ${{ steps.method.outputs.method == 'oidc' }}
         env:
           APP_NAME: ${{ steps.cfg.outputs.app_name }}
@@ -249,18 +250,41 @@ jobs:
           fi
           az account set --subscription "$AZURE_SUBSCRIPTION_ID"
           echo "Subscription OK: $(az account show --query name -o tsv) ($AZURE_SUBSCRIPTION_ID)"
-          ID=$(az functionapp list --query "[?name=='$APP_NAME'].id | [0]" -o tsv)
-          if [ -z "$ID" ]; then
-            echo "::error::The federated identity cannot see a Function App named '$APP_NAME' in subscription $AZURE_SUBSCRIPTION_ID. Check: (1) AZURE_SUBSCRIPTION_ID is the subscription that holds the app, (2) the app registration's service principal has the 'Website Contributor' (or Contributor) role on the app or its resource group."
+          # Find the app among ALL Microsoft.Web/sites this identity can see.
+          # Matched case-insensitively: Azure keeps the resource name in the
+          # case it was created with (e.g. "SlowOAuthFn") even though the
+          # hostname is lowercase, and JMESPath string comparison is
+          # case-sensitive. Generic `az resource list` is also more reliable
+          # than `az functionapp list` for Flex Consumption apps.
+          SITES=$(az resource list --resource-type Microsoft.Web/sites --query "[].{name:name,id:id,rg:resourceGroup,kind:kind}" -o json)
+          MATCH=$(echo "$SITES" | jq -c --arg n "$APP_NAME" '[.[] | select((.name|ascii_downcase)==($n|ascii_downcase))][0] // empty')
+          if [ -z "$MATCH" ]; then
+            APP_DISPLAY=$(az ad app show --id "$AZURE_CLIENT_ID" --query displayName -o tsv 2>/dev/null || echo "<the app registration>")
+            echo "::error::The identity '$APP_DISPLAY' ($AZURE_CLIENT_ID) can sign in to subscription $AZURE_SUBSCRIPTION_ID but cannot see a Function App named '$APP_NAME' in it."
+            if [ "$(echo "$SITES" | jq 'length')" = "0" ]; then
+              echo "  It can see NO Microsoft.Web/sites at all, so its role assignment does not cover the app's resource group. The Contributor role must be on the resource group (or the app) for the service principal '$APP_DISPLAY' - NOT on the Function App's own managed identity (Function App -> Identity), which is a different principal and is irrelevant to GitHub Actions."
+              echo "  Verify: Resource group -> Access control (IAM) -> Check access -> search '$APP_DISPLAY'   or   az role assignment list --assignee $AZURE_CLIENT_ID --all -o table"
+            else
+              echo "  Sites it CAN see (name / resource group / kind):"
+              echo "$SITES" | jq -r '.[] | "    \(.name)  /  \(.rg)  /  \(.kind)"'
+              echo "  If the app is listed under a different name, set oauthProvider.azure.functionAppName in site.config.json to that exact name. Otherwise the role assignment is scoped to a different resource group than the one holding '$APP_NAME'."
+            fi
             exit 1
           fi
-          RG=$(echo "$ID" | cut -d/ -f5)
-          SKU=$(az functionapp show --ids "$ID" --query "sku" -o tsv 2>/dev/null || true)
-          KIND=$(az functionapp show --ids "$ID" --query "kind" -o tsv 2>/dev/null || true)
-          HOST=$(az functionapp show --ids "$ID" --query "defaultHostName" -o tsv)
-          STATE=$(az functionapp show --ids "$ID" --query "state" -o tsv)
+          ID=$(echo "$MATCH" | jq -r .id)
+          ACTUAL_NAME=$(echo "$MATCH" | jq -r .name)
+          RG=$(echo "$MATCH" | jq -r .rg)
+          KIND=$(echo "$MATCH" | jq -r .kind)
+          echo "app_name_exact=$ACTUAL_NAME" >> "$GITHUB_OUTPUT"
+          if [ "$ACTUAL_NAME" != "$APP_NAME" ]; then
+            echo "::warning::site.config.json says '$APP_NAME' but the Azure resource is named '$ACTUAL_NAME' (case differs). Deploying to '$ACTUAL_NAME'; consider updating oauthProvider.azure.functionAppName to match exactly."
+          fi
+          SITE=$(az resource show --ids "$ID" -o json)
+          SKU=$(echo "$SITE" | jq -r '.properties.sku // empty')
+          HOST=$(echo "$SITE" | jq -r '.properties.defaultHostName')
+          STATE=$(echo "$SITE" | jq -r '.properties.state')
           echo "Function App: $ID"
-          echo "  plan/sku: ${SKU:-unknown}  kind: $KIND  state: $STATE  host: https://$HOST"
+          echo "  name: $ACTUAL_NAME  resource group: $RG  plan/sku: ${SKU:-unknown}  kind: $KIND  state: $STATE  host: https://$HOST"
           EXPECTED_HOST=$(echo "${{ steps.cfg.outputs.oauth_url }}" | sed 's#https\?://##')
           if [ "$HOST" != "$EXPECTED_HOST" ]; then
             echo "::error::Function App default hostname is '$HOST' but site.config.json oauthProvider.url says '$EXPECTED_HOST'. Update site.config.json (and the GitHub OAuth App callback URL) to match."
@@ -281,7 +305,8 @@ jobs:
         if: ${{ steps.method.outputs.method == 'oidc' }}
         uses: Azure/functions-action@v1
         with:
-          app-name: ${{ steps.cfg.outputs.app_name }}
+          # exact resource name as reported by Azure (case can differ from site.config.json)
+          app-name: ${{ steps.preflight.outputs.app_name_exact || steps.cfg.outputs.app_name }}
           package: ${{ env.PACKAGE_PATH }}
           respect-funcignore: true
           # node_modules are installed above and shipped in the package, so no

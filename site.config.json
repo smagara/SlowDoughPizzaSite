@@ -11,7 +11,7 @@
   "oauthProvider": {
     "url": "https://slowoauthfn-b3hzcgbnfch8bhbz.eastus2-01.azurewebsites.net",
     "azure": {
-      "functionAppName": "slowoauthfn",
+      "functionAppName": "SlowOAuthFn",
       "region": "eastus2"
     }
   }

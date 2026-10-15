@@ -50,7 +50,7 @@ Change them there and nothing else needs to be edited (see
   "github":        { "repo": "smagara/SlowDoughPizzaSite", "branch": "main" },
   "site":          { "url": "https://smagara.github.io/SlowDoughPizzaSite", "basePath": "/SlowDoughPizzaSite/" },
   "oauthProvider": { "url": "https://slowoauthfn-b3hzcgbnfch8bhbz.eastus2-01.azurewebsites.net",
-                     "azure": { "functionAppName": "slowoauthfn", "region": "eastus2" } }
+                     "azure": { "functionAppName": "SlowOAuthFn", "region": "eastus2" } }
 }
 ```
 
@@ -203,6 +203,14 @@ Flex Consumption)**
    >
    > In the portal's *Add role assignment → Members* picker, search for the
    > **app registration's display name**, not for `slowoauthfn`.
+   >
+   > There is **no conflict** between the two: keep the Function App's
+   > system-assigned identity **On** (Flex Consumption uses it — with
+   > *Storage Blob Data Contributor* on the deployment container — to load the
+   > deployed package; turning it off breaks the app). Extra roles granted to
+   > that managed identity (Contributor / Website Contributor on `CMS`) are
+   > unnecessary and can be removed for least privilege, but they don't
+   > interfere with the GitHub deployment either.
    >
    > **Which ID goes where?** The Enterprise application's *Overview* shows
    > two IDs:
@@ -387,7 +395,8 @@ npm run build && npm run preview    # -> http://localhost:4173/SlowDoughPizzaSit
 | `azure/login` fails with **AADSTS700016** *application not found*        | `AZURE_CLIENT_ID` is not the app registration's Application (client) ID, or wrong `AZURE_TENANT_ID`.     |
 | `azure/login` / OIDC pre-flight: **No subscriptions found for `<client-id>`** / **The subscription of '`<id>`' doesn't exist in cloud 'AzureCloud'** / *has NO role assignment in any subscription* | The sign-in worked; the **app registration's service principal** has no role assignment visible in that subscription — most often because the role was given to the Function App's *managed identity* instead (see the "Which identity?" box in 3b-B step 3), or the subscription is in another tenant. The subscription ID itself is not the problem, and repository secrets are fine — environment secrets are *not* required. Verify with `az role assignment list --assignee <client-id> --all -o table`. |
 | OIDC pre-flight: *AZURE_SUBSCRIPTION_ID … is not among the subscriptions this identity can access* | The step lists the visible subscriptions. If the only entry is **`N/A(tenant level account)`**, the identity still has **no role assignment anywhere** (same fix as the row above); otherwise the secret holds a different subscription than the one where the role was assigned. |
-| OIDC pre-flight: *cannot see a Function App named 'slowoauthfn'*         | Role assigned at the wrong scope (another RG/app), or the app name in `site.config.json` is wrong.        |
+| OIDC pre-flight: *cannot see a Function App named '…'* — *It can see NO Microsoft.Web/sites at all* | The Contributor role is not on resource group `CMS` for **`SlowDoughDecapCMS`** (check *RG → IAM → Check access*); roles on the Function App's managed identity don't count. |
+| OIDC pre-flight: *cannot see a Function App named '…'* but lists *Sites it CAN see* | The app exists under a different name/case or resource group; copy the exact name into `oauthProvider.azure.functionAppName`. (Azure keeps the name's original case, e.g. `SlowOAuthFn`; the pre-flight matches case-insensitively and deploys using the exact name.) |
 | Site assets 404 on GitHub Pages                                         | `site.basePath` must equal `/<repo-name>/` for project pages (or `/` for a custom domain).                |
 | *"Failed to load config.yml"* in the admin                              | The build didn't emit `admin/config.yml`; run `npm run build` locally and check `dist/admin/config.yml`.  |
 
