@@ -296,6 +296,17 @@ jobs:
           for k in OAUTH_GITHUB_CLIENT_ID OAUTH_GITHUB_CLIENT_SECRET; do
             echo "$SETTINGS" | grep -qx "$k" || { echo "::error::Function App is missing application setting $k (Settings -> Environment variables). Without it /auth returns 500."; exit 1; }
           done
+          # Sanity-check the SHAPE of the GitHub client id (value is never printed).
+          # Both Azure and GitHub call their ids "client ID"; the GitHub one looks like
+          # 'Ov23li...' or 20 hex chars, the Entra one is a GUID and belongs in the
+          # AZURE_CLIENT_ID GitHub secret, not here.
+          GH_ID=$(az functionapp config appsettings list --name "$ACTUAL_NAME" --resource-group "$RG" --query "[?name=='OAUTH_GITHUB_CLIENT_ID'].value | [0]" -o tsv)
+          if echo "$GH_ID" | grep -Eqi '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
+            echo "::error::OAUTH_GITHUB_CLIENT_ID on the Function App is a GUID (an Azure/Entra application id). It must be the GitHub OAuth App's Client ID (github.com -> Settings -> Developer settings -> OAuth Apps -> your app -> 'Client ID', e.g. Ov23li...). Set OAUTH_GITHUB_CLIENT_ID / OAUTH_GITHUB_CLIENT_SECRET from that GitHub page; the Entra id stays in the AZURE_CLIENT_ID repository secret."
+            exit 1
+          fi
+          echo "$GH_ID" | grep -Eq '^(Ov23li[A-Za-z0-9]{8,}|Iv1\.[0-9a-f]{16}|Iv23li[A-Za-z0-9]{8,}|[0-9a-f]{20})$' || echo "::warning::OAUTH_GITHUB_CLIENT_ID does not look like a typical GitHub OAuth App Client ID ('Ov23li...' or 20 hex chars). Double-check it against the GitHub OAuth App page."
+          echo "OAuth app settings present (client id shape: ${GH_ID:0:6}..., ${#GH_ID} chars)."
           if echo "$SETTINGS" | grep -qx "WEBSITE_RUN_FROM_PACKAGE" && echo "$SKU" | grep -qi flex; then
             echo "::error::WEBSITE_RUN_FROM_PACKAGE must NOT be set on a Flex Consumption app; remove it."; exit 1
           fi
@@ -354,7 +365,23 @@ jobs:
           LOC=$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 15 "$BASE/auth")
           echo "/auth -> HTTP $CODE -> $LOC"
           case "$CODE" in
-            301|302|303|307|308) echo "$LOC" | grep -q '^https://github.com/login/oauth/authorize' || { echo "::error::/auth did not redirect to GitHub"; exit 1; } ;;
+            301|302|303|307|308)
+              echo "$LOC" | grep -q '^https://github.com/login/oauth/authorize' || { echo "::error::/auth did not redirect to GitHub"; exit 1; }
+              # The CSRF `state` cookie must accompany the redirect, otherwise
+              # /callback will reject the sign-in with a 400 "state check" error.
+              if ! curl -sI --max-time 15 "$BASE/auth" | grep -qi '^set-cookie: sd_oauth_state='; then
+                echo "::error::/auth redirected to GitHub but did not set the 'sd_oauth_state' cookie. The Functions host dropped the cookie - make sure the deployed code returns it via the v4 'cookies' property (oauth-provider/azure/handlers.js) and that no proxy strips Set-Cookie."
+                exit 1
+              fi
+              echo "state cookie present on /auth"
+              # GitHub answers 404 on the authorize page when client_id is unknown to it.
+              GH_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$LOC")
+              echo "GitHub authorize page -> HTTP $GH_CODE"
+              if [ "$GH_CODE" = "404" ]; then
+                echo "::error::github.com/login/oauth/authorize returned 404 for this client_id: GitHub has no OAuth App with that Client ID. Fix OAUTH_GITHUB_CLIENT_ID on the Function App (use the Client ID shown on github.com -> Settings -> Developer settings -> OAuth Apps)."
+                exit 1
+              fi
+              ;;
             500) echo "::error::/auth returned 500 - set OAUTH_GITHUB_CLIENT_ID and OAUTH_GITHUB_CLIENT_SECRET in the Function App's Application settings"; exit 1 ;;
             *)   echo "::error::Unexpected status $CODE from /auth"; exit 1 ;;
           esac

@@ -16,10 +16,25 @@ const {
   exchangeCodeForToken,
   renderPostMessageResponse,
   createState,
-  buildStateCookie,
-  buildClearStateCookie,
   isValidState,
+  explainStateFailure,
+  STATE_COOKIE_NAME,
+  STATE_COOKIE_MAX_AGE_SECONDS,
 } = require('../lib/github-oauth');
+
+// Cookies are returned through the v4 model's dedicated `cookies` property
+// rather than a raw Set-Cookie header: the Functions host serialises that
+// property itself, whereas a Set-Cookie entry in `headers` is not guaranteed
+// to survive the worker -> host hop.
+const stateCookie = (value, maxAge) => ({
+  name: STATE_COOKIE_NAME,
+  value,
+  path: '/',
+  maxAge,
+  httpOnly: true,
+  secure: true,
+  sameSite: 'Lax',
+});
 
 const HTML_HEADERS = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' };
 
@@ -34,9 +49,9 @@ async function auth(request, context) {
       status: 302,
       headers: {
         Location: buildAuthorizeRedirectUrl({ state }),
-        'Set-Cookie': buildStateCookie(state),
         'Cache-Control': 'no-store',
       },
+      cookies: [stateCookie(state, STATE_COOKIE_MAX_AGE_SECONDS)],
     };
   } catch (err) {
     context?.error?.(`OAuth configuration error: ${err.message}`);
@@ -63,12 +78,14 @@ async function callback(request, context) {
   }
 
   if (!isValidState(state, request.headers.get('cookie'))) {
+    const reason = explainStateFailure(state, request.headers.get('cookie'));
+    context?.warn?.(`OAuth state check failed: ${reason}`);
     return {
       status: 400,
       headers: HTML_HEADERS,
       body: renderPostMessageResponse({
         status: 'error',
-        payload: { message: 'Invalid or expired OAuth state. Please try logging in again.' },
+        payload: { message: `Sign-in could not be completed (CSRF state check). ${reason}` },
       }),
     };
   }
@@ -77,7 +94,8 @@ async function callback(request, context) {
     const token = await exchangeCodeForToken(code);
     return {
       status: 200,
-      headers: { ...HTML_HEADERS, 'Set-Cookie': buildClearStateCookie() },
+      headers: HTML_HEADERS,
+      cookies: [stateCookie('', 0)],
       body: renderPostMessageResponse({ status: 'success', payload: { token, provider: 'github' } }),
     };
   } catch (err) {

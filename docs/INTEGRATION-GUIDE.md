@@ -84,11 +84,28 @@ Decap signs users in with GitHub, so GitHub must know about the app.
    | Enable Device Flow             | leave unchecked                                                                |
 
 3. Click **Register application**, then **Generate a new client secret**.
-4. Copy the **Client ID** and the **Client secret** — you will paste them into
-   Azure in the next step. (The secret is shown only once.)
+4. Copy the **Client ID** (looks like `Ov23li…` or 20 hex characters) and the
+   **Client secret** — you will paste them into Azure in the next step. (The
+   secret is shown only once.)
 
 > The callback URL must be the OAuth provider host + `/callback` — *not* the
-> GitHub Pages site. If `oauthProvider.url` ever changes, update this field too.
+> GitHub Pages site and *not* `…/api/callback`. If `oauthProvider.url` ever
+> changes, update this field too. GitHub sends the browser to this URL after
+> the user approves; anything else produces either a GitHub
+> *"redirect_uri is not associated with this application"* error or a 404
+> on the Pages site.
+
+> **Two unrelated "client IDs" — don't mix them up.**
+>
+> | ID | Looks like | Where it comes from | Where it goes |
+> |----|------------|---------------------|---------------|
+> | GitHub OAuth App **Client ID** | `Ov23li…` / 20 hex chars | github.com → Settings → Developer settings → OAuth Apps → *SlowDoughPizzaSite_Decap* | Function App setting **`OAUTH_GITHUB_CLIENT_ID`** (+ its secret → `OAUTH_GITHUB_CLIENT_SECRET`) |
+> | Entra app registration **Application (client) ID** | GUID `4230312f-…` | Azure portal → App registrations → *SlowDoughDecapCMS* | GitHub repository secret **`AZURE_CLIENT_ID`** (deploy-time only) |
+>
+> If the GUID ends up in `OAUTH_GITHUB_CLIENT_ID`, the login popup lands on a
+> GitHub **404 "This is not the web page you are looking for"** page, because
+> GitHub has no OAuth App with that id. The deploy workflow's pre-flight and
+> smoke test now both detect this.
 
 ---
 
@@ -384,7 +401,10 @@ npm run build && npm run preview    # -> http://localhost:4173/SlowDoughPizzaSit
 | Symptom                                                                 | Likely cause / fix                                                                                          |
 |-------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
 | Popup shows *"OAuth configuration error: Missing … OAUTH_GITHUB_CLIENT_ID"* | Step 3a not done, or settings saved on a deployment slot instead of the production app.                 |
-| GitHub shows *"The redirect_uri is not associated with this application"* | OAuth App callback URL ≠ `oauthProvider.url` + `/callback`. Fix in GitHub (step 2), no redeploy needed. |
+| Popup lands on a GitHub **404 page** (`github.com/login/oauth/authorize?client_id=<a GUID>`) | `OAUTH_GITHUB_CLIENT_ID` on the Function App holds the Entra application id instead of the GitHub OAuth App Client ID (`Ov23li…`). Fix the two app settings from the GitHub OAuth App page; no redeploy needed (the app reads settings at runtime). |
+| Popup shows *"OAuth configuration error: OAUTH_GITHUB_CLIENT_ID is a GUID…"* | Same as above — the service now refuses to send an Entra id to GitHub and tells you which id belongs where. |
+| After approving on GitHub, the popup shows **400** from `…azurewebsites.net/callback` with *"Sign-in could not be completed (CSRF state check) …"* | This is the service's own **CSRF** (cross-site request *forgery*, not scripting) guard, not a permission on GitHub or Azure — nothing needs to be "allowed" on either side. `/auth` sets a 5-minute `sd_oauth_state` cookie and `/callback` requires it back. The page text says which half is missing: *browser did not send the cookie* → usually the deployed function returned the cookie via a raw `Set-Cookie` header that the Functions host dropped (fixed: cookies now go through the v4 `cookies` property — redeploy), cookies blocked by a privacy setting/extension, or >5 min spent on the GitHub page; *no `state` parameter* → the flow did not start at `/auth`. The deploy smoke test now verifies `/auth` sets the cookie. |
+| GitHub shows *"The redirect_uri is not associated with this application"*, or after approving you land on a 404 at `smagara.github.io/…/api/callback` | OAuth App **Authorization callback URL** must be exactly `https://slowoauthfn-b3hzcgbnfch8bhbz.eastus2-01.azurewebsites.net/callback` (step 2). Fix in GitHub, no redeploy needed. |
 | Popup closes but Decap says the user isn't authorized / *"Not Found"*   | The GitHub account is not a collaborator with write access on `smagara/SlowDoughPizzaSite`.              |
 | `/admin/` loads the pizza site instead of the editor                    | You are on `vite dev` and typed `/admin` without the slash; it redirects now. On Pages, verify `site.basePath`. |
 | Deploy workflow fails with *"Failed to fetch Kudu App Settings. Unauthorized (CODE: 401)"* | See [8a](#8a-kudu-401-with-the-publish-profile) — basic-auth publishing is off (or the profile is stale). |

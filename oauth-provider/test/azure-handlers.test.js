@@ -19,7 +19,7 @@ function makeRequest({ query = {}, cookie = '' } = {}) {
 const noopContext = { error() {}, log() {} };
 
 test.beforeEach(() => {
-  process.env.OAUTH_GITHUB_CLIENT_ID = 'test-client-id';
+  process.env.OAUTH_GITHUB_CLIENT_ID = 'Ov23liTESTclientid123';
   process.env.OAUTH_GITHUB_CLIENT_SECRET = 'test-client-secret';
 });
 
@@ -34,11 +34,31 @@ test('auth redirects to GitHub with client_id, scope and a state cookie', async 
   assert.equal(res.status, 302);
   const location = new URL(res.headers.Location);
   assert.equal(location.origin + location.pathname, 'https://github.com/login/oauth/authorize');
-  assert.equal(location.searchParams.get('client_id'), 'test-client-id');
+  assert.equal(location.searchParams.get('client_id'), 'Ov23liTESTclientid123');
   assert.equal(location.searchParams.get('scope'), 'repo,user');
   const state = location.searchParams.get('state');
   assert.match(state, /^[0-9a-f]{32}$/);
-  assert.match(res.headers['Set-Cookie'], new RegExp(`^${oauth.STATE_COOKIE_NAME}=${state}; Max-Age=300; Path=/; HttpOnly; Secure; SameSite=Lax$`));
+  assert.equal(res.cookies.length, 1);
+  assert.deepEqual(res.cookies[0], {
+    name: oauth.STATE_COOKIE_NAME, value: state, path: '/', maxAge: 300, httpOnly: true, secure: true, sameSite: 'Lax',
+  });
+  assert.equal(res.headers['Set-Cookie'], undefined, 'cookie must go through the v4 cookies property');
+});
+
+test('auth returns 500 with a pointed message when OAUTH_GITHUB_CLIENT_ID is an Entra GUID', async () => {
+  process.env.OAUTH_GITHUB_CLIENT_ID = '4230312f-5a1b-4c2d-9e8f-0123456789ab';
+  const res = await handlers.auth(makeRequest(), noopContext);
+  assert.equal(res.status, 500);
+  assert.match(res.body, /is a GUID, i\.e\. an Azure\/Entra application id/);
+  assert.match(res.body, /AZURE_CLIENT_ID instead/);
+});
+
+test('auth accepts both GitHub client id formats', async () => {
+  for (const id of ['Ov23liYabcdefghijklm', 'abcdef0123456789abcd']) {
+    process.env.OAUTH_GITHUB_CLIENT_ID = id;
+    const res = await handlers.auth(makeRequest(), noopContext);
+    assert.equal(res.status, 302, `expected redirect for ${id}`);
+  }
 });
 
 test('auth returns 500 when the OAuth app is not configured', async () => {
@@ -55,7 +75,17 @@ test('callback rejects a missing or mismatched state', async () => {
   );
   assert.equal(res.status, 400);
   assert.match(res.body, /authorization:github:error/);
-  assert.match(res.body, /Invalid or expired OAuth state/);
+  assert.match(res.body, /CSRF state check/);
+  assert.match(res.body, /does not match the cookie/);
+});
+
+test('callback explains a missing cookie vs a missing state parameter', async () => {
+  const noCookie = await handlers.callback(makeRequest({ query: { code: 'abc', state: 'xyz' } }), noopContext);
+  assert.equal(noCookie.status, 400);
+  assert.match(noCookie.body, /did not send the 'sd_oauth_state' cookie/);
+  const noState = await handlers.callback(makeRequest({ query: { code: 'abc' }, cookie: `${oauth.STATE_COOKIE_NAME}=xyz` }), noopContext);
+  assert.equal(noState.status, 400);
+  assert.match(noState.body, /did not include the 'state' parameter/);
 });
 
 test('callback surfaces GitHub-side errors (e.g. user cancelled)', async () => {
@@ -84,7 +114,7 @@ test('callback exchanges the code and posts the token back to the opener', async
     assert.equal(res.status, 200);
     assert.equal(capturedBody.code, 'the-code');
     assert.equal(capturedBody.client_secret, 'test-client-secret');
-    assert.match(res.headers['Set-Cookie'], /Max-Age=0/);
+    assert.deepEqual(res.cookies[0], { name: oauth.STATE_COOKIE_NAME, value: '', path: '/', maxAge: 0, httpOnly: true, secure: true, sameSite: 'Lax' });
     // Exact message protocol Decap's GitHub backend listens for:
     assert.match(res.body, /"authorization:github:success:\{\\"token\\":\\"gho_test_token\\",\\"provider\\":\\"github\\"\}"/);
     assert.match(res.body, /window\.opener\.postMessage\('authorizing:github', '\*'\)/);
