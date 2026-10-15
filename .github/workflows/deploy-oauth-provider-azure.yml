@@ -291,7 +291,8 @@ jobs:
             exit 1
           fi
           [ "$STATE" = "Running" ] || echo "::warning::Function App state is '$STATE' (expected Running)."
-          SETTINGS=$(az functionapp config appsettings list --ids "$ID" --query "[].name" -o tsv)
+          # (this sub-command does not accept --ids; it needs -n/-g explicitly)
+          SETTINGS=$(az functionapp config appsettings list --name "$ACTUAL_NAME" --resource-group "$RG" --query "[].name" -o tsv)
           for k in OAUTH_GITHUB_CLIENT_ID OAUTH_GITHUB_CLIENT_SECRET; do
             echo "$SETTINGS" | grep -qx "$k" || { echo "::error::Function App is missing application setting $k (Settings -> Environment variables). Without it /auth returns 500."; exit 1; }
           done
