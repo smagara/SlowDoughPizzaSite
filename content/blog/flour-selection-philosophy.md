@@ -1,16 +1,21 @@
 ---
 title: "The Grain Matters: Our Philosophy on Flour Selection"
-subtitle: "Why we blend imported Italian Type 00 wheat with regional stone-milled heritage grains."
-author: "Elena Rossi"
-authorRole: "Master Miller & Co-Founder"
-readTime: "5 min read"
-publishedDate: "2026-09-08"
-artType: "oven"
-excerpt: "A dough fermented for three days will destroy weak flours. Here is how we balance protein strength, ash content, and ancient grain aromatics."
+subtitle: Why we blend imported Italian Type 00 wheat with regional stone-milled
+  heritage grains.
+author: Elena Smith
+authorRole: Master Miller & Co-Founder
+readTime: 5 min read
+publishedDate: 2026-09-08
+artType: oven
+excerpt: A dough fermented for three days will destroy weak flours. Here is how
+  we balance protein strength, ash content, and ancient grain aromatics.
 keyTakeaways:
-  - "Standard roller-milled all-purpose flours collapse under 72 hours of enzyme activity; high-strength (W300+) flour is essential."
-  - "Imported Italian Tipo 00 provides unyielding elasticity, fine silkiness, and thermal resistance in a 900°F oven."
-  - "We incorporate 15% freshly stone-milled heritage Red Fife wheat to reintroduce wheat germ oils, mineral depth, and rustic aroma."
+  - Standard roller-milled all-purpose flours collapse under 72 hours of enzyme
+    activity; high-strength (W300+) flour is essential.
+  - Imported Italian Tipo 00 provides unyielding elasticity, fine silkiness, and
+    thermal resistance in a 900°F oven.
+  - We incorporate 15% freshly stone-milled heritage Red Fife wheat to
+    reintroduce wheat germ oils, mineral depth, and rustic aroma.
 ---
 ## The Myth of "All Flour Is Equal"
 
