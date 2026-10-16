@@ -369,7 +369,10 @@ jobs:
               echo "$LOC" | grep -q '^https://github.com/login/oauth/authorize' || { echo "::error::/auth did not redirect to GitHub"; exit 1; }
               # The CSRF `state` cookie must accompany the redirect, otherwise
               # /callback will reject the sign-in with a 400 "state check" error.
-              if ! curl -sI --max-time 15 "$BASE/auth" | grep -qi '^set-cookie: sd_oauth_state='; then
+              # NOTE: a GET with dumped headers (-D -), not `curl -I`: -I sends a
+              # HEAD request, which browsers never use here and which the
+              # function does not treat identically.
+              if ! curl -s -D - -o /dev/null --max-time 15 "$BASE/auth" | grep -qi '^set-cookie: sd_oauth_state='; then
                 echo "::error::/auth redirected to GitHub but did not set the 'sd_oauth_state' cookie. The Functions host dropped the cookie - make sure the deployed code returns it via the v4 'cookies' property (oauth-provider/azure/handlers.js) and that no proxy strips Set-Cookie."
                 exit 1
               fi

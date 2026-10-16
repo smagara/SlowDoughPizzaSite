@@ -6,16 +6,19 @@
 const { app } = require('@azure/functions');
 const handlers = require('../handlers');
 
+// HEAD is accepted alongside GET so uptime monitors and `curl -I` get the
+// same status/headers a browser would (the Functions host returns 404 for
+// methods that are not registered).
 app.http('healthz', {
   route: 'healthz',
-  methods: ['GET'],
+  methods: ['GET', 'HEAD'],
   authLevel: 'anonymous',
   handler: handlers.healthz,
 });
 
 app.http('auth', {
   route: 'auth',
-  methods: ['GET'],
+  methods: ['GET', 'HEAD'],
   authLevel: 'anonymous',
   handler: handlers.auth,
 });

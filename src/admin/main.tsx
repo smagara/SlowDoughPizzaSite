@@ -10,6 +10,7 @@
 import CMS from 'decap-cms-app';
 import { PREVIEW_CSS } from './previewStyles';
 import { AnnouncementPreview, MenuPreview, HoursPreview, BlogPreview } from './previews';
+import { showLocalModeHintIfNeeded } from './localModeHint';
 
 // ---------------------------------------------------------------------
 // Brand-matched live preview panes (see src/admin/previews.tsx)
@@ -56,9 +57,11 @@ CMS.registerEventListener({
 
 CMS.init();
 
-// Hide the branded boot splash once Decap has mounted its own UI.
+// Hide the branded boot splash once Decap has mounted its own UI, and on
+// localhost explain when local edit mode is unavailable (see localModeHint.ts).
 window.addEventListener('load', () => {
   window.setTimeout(() => {
     document.getElementById('sd-boot-splash')?.classList.add('sd-hidden');
   }, 250);
+  showLocalModeHintIfNeeded();
 });

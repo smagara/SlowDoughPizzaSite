@@ -19,7 +19,11 @@ admin UI at `/admin`, instead of editing these files by hand.
 
 - **Local editing** (no GitHub login required): run
   `npm run dev:cms` (starts both Vite and the Decap local-backend proxy),
-  then open `http://localhost:3000/admin`.
+  then open `http://localhost:3000/admin`. With plain `npm run dev` the
+  proxy isn't running, so the admin falls back to GitHub login (a banner
+  on the page says so).
+- **After a CMS publish**: it merged a PR on GitHub, so run
+  `git pull --rebase origin main` before pushing local work.
 - **Production editing**: collaborators on this GitHub repo sign in with
   GitHub at `https://smagara.github.io/SlowDoughPizzaSite/admin/` and
   publish changes as a Pull Request for review — see the Technical Design

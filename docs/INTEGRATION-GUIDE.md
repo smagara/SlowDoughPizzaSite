@@ -316,7 +316,7 @@ Manual check from any terminal:
 
 ```bash
 curl -s https://slowoauthfn-b3hzcgbnfch8bhbz.eastus2-01.azurewebsites.net/healthz      # -> ok
-curl -sI https://slowoauthfn-b3hzcgbnfch8bhbz.eastus2-01.azurewebsites.net/auth | grep -i location
+curl -s -D - -o /dev/null https://slowoauthfn-b3hzcgbnfch8bhbz.eastus2-01.azurewebsites.net/auth | grep -i -E 'location|set-cookie'
 # -> Location: https://github.com/login/oauth/authorize?client_id=...&scope=repo%2Cuser&state=...
 ```
 
@@ -375,6 +375,50 @@ inconsistent or still contains placeholders.
 
 ---
 
+## 6a. Day-to-day Git hygiene once the CMS is live
+
+Every CMS publish is an ordinary merge into `main` made *on GitHub*. Your
+local clone does not know about it until you fetch, so a local commit made
+afterwards will be rejected with *"Updates were rejected because the remote
+contains work that you do not have locally"* / *"Not possible to
+fast-forward"*. That is standard Git behaviour whenever anyone else (here:
+Decap, acting as the owner) merges to `main` — it is not specific to Decap,
+and nothing is out of sync on GitHub.
+
+The accepted practice is simply to rebase your local work on top of `main`
+before pushing:
+
+```bash
+git pull --rebase origin main      # replay your local commits on top of the CMS merges
+git push origin main
+```
+
+Make that the default once so you never have to think about it again:
+
+```bash
+git config --global pull.rebase true    # `git pull` now rebases instead of merging
+git config --global fetch.prune true    # forget cms/* branches that were deleted on GitHub
+```
+
+Recommended repository settings (GitHub → Settings → General → *Pull
+Requests*):
+
+- **Allow squash merging: on** — Decap publishes with `squash_merges: true`,
+  so each content change lands as one clean commit on `main`.
+- **Automatically delete head branches: on** — the `cms/<collection>/<slug>`
+  branch is removed after the merge whether you publish from the CMS's
+  *Ready → Publish* button or click *Merge* on GitHub (either is fine; Decap
+  notices a merged/closed PR and drops the entry from its Workflow board).
+
+Habits that avoid conflicts entirely:
+
+- Treat `/content/**` as CMS-owned: edit it through `/admin` (or locally via
+  `npm run dev:cms`, then commit), not both at once.
+- Developers work on feature branches and open PRs like the CMS does; keep
+  `main` as the integration branch only. A branch protection rule requiring
+  PRs on `main` is optional and compatible with Decap (the owner still merges
+  their own PR).
+
 ## 7. Local development (no Azure / GitHub login needed)
 
 ```bash
@@ -386,6 +430,30 @@ Open `http://localhost:3000/admin/`, click **Login** (no credentials — the
 local proxy edits the files in `/content` directly). The production values
 from `site.config.json` are still rendered into the local `/admin/config.yml`,
 but Decap only talks to GitHub/Azure when the page is *not* on `localhost`.
+
+### How Decap decides between local mode and GitHub login (by design)
+
+This is Decap's built-in behaviour, and it explains the "local option
+disappeared" effect:
+
+1. Local mode is only ever considered when the page is served from
+   `localhost` / `127.0.0.1` **and** `config.yml` has `local_backend: true`
+   (it does). Production (`smagara.github.io`) never probes for it.
+2. On localhost, Decap probes `http://localhost:8081/api/v1` for the
+   `decap-server` proxy. **If the proxy answers** you get the plain
+   **Login** button and edits go to `/content` on disk. **If it doesn't**
+   (typically because `npm run dev` was started instead of `npm run dev:cms`,
+   or the proxy was stopped), Decap *silently* falls back to the `github`
+   backend and shows **Login with GitHub** — which works, but every save then
+   opens a real pull request against the production repo.
+3. Sessions are per browser origin, so signing in on the production site has
+   no effect on localhost and vice-versa. The only state that matters is
+   whether the proxy is running when the page loads.
+
+Because the fallback is silent, the admin page now shows a banner on
+localhost when the proxy is not reachable (*"Local edit mode is off … run
+`npm run dev:cms`"*). To get local mode back: stop the dev server, run
+`npm run dev:cms`, reload `/admin/`.
 
 To preview the real production build (with the `/SlowDoughPizzaSite/` base
 path and the GitHub login button):
@@ -406,6 +474,8 @@ npm run build && npm run preview    # -> http://localhost:4173/SlowDoughPizzaSit
 | After approving on GitHub, the popup shows **400** from `…azurewebsites.net/callback` with *"Sign-in could not be completed (CSRF state check) …"* | This is the service's own **CSRF** (cross-site request *forgery*, not scripting) guard, not a permission on GitHub or Azure — nothing needs to be "allowed" on either side. `/auth` sets a 5-minute `sd_oauth_state` cookie and `/callback` requires it back. The page text says which half is missing: *browser did not send the cookie* → usually the deployed function returned the cookie via a raw `Set-Cookie` header that the Functions host dropped (fixed: cookies now go through the v4 `cookies` property — redeploy), cookies blocked by a privacy setting/extension, or >5 min spent on the GitHub page; *no `state` parameter* → the flow did not start at `/auth`. The deploy smoke test now verifies `/auth` sets the cookie. |
 | GitHub shows *"The redirect_uri is not associated with this application"*, or after approving you land on a 404 at `smagara.github.io/…/api/callback` | OAuth App **Authorization callback URL** must be exactly `https://slowoauthfn-b3hzcgbnfch8bhbz.eastus2-01.azurewebsites.net/callback` (step 2). Fix in GitHub, no redeploy needed. |
 | Popup closes but Decap says the user isn't authorized / *"Not Found"*   | The GitHub account is not a collaborator with write access on `smagara/SlowDoughPizzaSite`.              |
+| Localhost `/admin/` shows **Login with GitHub** instead of **Login** (local mode "gone") | The `decap-server` proxy isn't running — start with `npm run dev:cms`, not `npm run dev` (see §7). A banner now says so. |
+| Push to `main` rejected *"remote contains work that you do not have locally"* after a CMS publish | Normal Git: the CMS merged a PR on GitHub. `git pull --rebase origin main` then push (see §6a). |
 | `/admin/` loads the pizza site instead of the editor                    | You are on `vite dev` and typed `/admin` without the slash; it redirects now. On Pages, verify `site.basePath`. |
 | Deploy workflow fails with *"Failed to fetch Kudu App Settings. Unauthorized (CODE: 401)"* | See [8a](#8a-kudu-401-with-the-publish-profile) — basic-auth publishing is off (or the profile is stale). |
 | Deploy workflow fails at Kudu with **403**                                | The SCM site has access restrictions blocking GitHub runners (Networking → Access restriction → *Advanced tool site*). |
